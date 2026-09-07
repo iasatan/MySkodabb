@@ -24,11 +24,14 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem 1.5rem;
+    gap: .75rem;
+    padding: .9rem 1.25rem;
     background: var(--emerald);
     color: #fff;
     flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .brand {
@@ -54,14 +57,15 @@ body {
 
 .topbar nav {
     display: flex;
-    gap: 1.25rem;
+    flex-wrap: wrap;
+    gap: .5rem .9rem;
 }
 
 .topbar nav a {
     color: #dfe8e4;
     text-decoration: none;
     font-size: .95rem;
-    padding-bottom: 2px;
+    padding: .25rem 0;
     border-bottom: 2px solid transparent;
 }
 
@@ -74,12 +78,18 @@ body {
 .hero {
     background: linear-gradient(135deg, var(--emerald) 0%, var(--emerald-dark) 100%);
     color: #fff;
-    padding: 5rem 1.5rem;
+    padding: 3rem 1.25rem;
 }
 
 .hero-inner {
     max-width: 780px;
     margin: 0 auto;
+}
+
+.hero h2 {
+    font-size: clamp(1.6rem, 5vw, 2.4rem);
+    margin: 0 0 .75rem;
+    line-height: 1.2;
 }
 
 .eyebrow {
@@ -91,9 +101,9 @@ body {
 }
 
 h1 {
-    font-size: clamp(1.9rem, 4vw, 3rem);
+    font-size: clamp(1.7rem, 6vw, 2.6rem);
     margin: 0 0 1rem;
-    line-height: 1.15;
+    line-height: 1.2;
 }
 
 .lead {
@@ -171,7 +181,8 @@ h1 {
 
 .link-row {
     display: flex;
-    gap: 1rem;
+    flex-wrap: wrap;
+    gap: .5rem 1rem;
 }
 
 .section-head {
@@ -179,8 +190,10 @@ h1 {
     align-items: baseline;
     justify-content: space-between;
     gap: 1rem;
+    flex-wrap: wrap;
 }
 
+.section-head h1,
 .section-head h2 {
     margin: 0;
     color: var(--emerald);
@@ -189,18 +202,22 @@ h1 {
 .vehicle-cards {
     margin: 1rem 0 0;
     padding: 0;
+    max-width: none;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
-.map-panel h3 {
+.map-panel h2 {
     margin: 0 0 .75rem;
+    font-size: 1.15rem;
     color: var(--emerald);
 }
 
 .map-panel iframe {
     width: 100%;
-    height: 320px;
+    height: min(60vw, 320px);
     border: 0;
     border-radius: 10px;
+    display: block;
 }
 
 .hint {
@@ -215,35 +232,37 @@ h1 {
 
 .cards {
     max-width: 980px;
-    margin: -3rem auto 3rem;
-    padding: 0 1.5rem;
+    margin: 0 auto;
+    padding: 1.5rem 1.25rem;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: .9rem;
 }
 
 .card {
     background: #fff;
     border-radius: 14px;
-    padding: 1.5rem;
+    padding: 1.1rem 1.25rem;
     box-shadow: 0 10px 30px rgba(14, 58, 47, .08);
 }
 
 .card h2 {
-    margin: 0 0 .25rem;
+    margin: 0 0 .15rem;
     color: var(--emerald);
-    font-size: 1.6rem;
+    font-size: 1.4rem;
+    overflow-wrap: anywhere;
 }
 
 .card p {
     margin: 0;
     color: var(--muted);
+    font-size: .9rem;
 }
 
 .page {
     max-width: 780px;
     margin: 0 auto;
-    padding: 2.5rem 1.5rem 3rem;
+    padding: 1.75rem 1.25rem 2.5rem;
 }
 
 .panel {
@@ -379,4 +398,100 @@ form.panel .btn {
 
 .footer p {
     margin: 0;
+}
+
+@media (max-width: 560px) {
+    body {
+        line-height: 1.5;
+    }
+
+    .topbar {
+        gap: .4rem;
+    }
+
+    .topbar nav {
+        width: 100%;
+        gap: .4rem .85rem;
+    }
+
+    .topbar nav a {
+        font-size: .88rem;
+    }
+
+    .hero {
+        padding: 2.25rem 1rem;
+    }
+
+    .page {
+        padding: 1.25rem 1rem 2rem;
+    }
+
+    .cards {
+        padding: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+
+    .card {
+        padding: .9rem 1rem;
+    }
+
+    .card h2 {
+        font-size: 1.2rem;
+    }
+
+    .panel,
+    .result {
+        padding: 1.1rem;
+        border-radius: 12px;
+    }
+
+    form.panel {
+        grid-template-columns: 1fr;
+    }
+
+    .btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .actions .btn {
+        width: auto;
+        flex: 1 1 auto;
+    }
+
+    .verdict {
+        font-size: 1.15rem;
+    }
+
+    /* Sz\u0171k kijelz\u0151n a t\u00e1bl\u00e1zat sorai egym\u00e1s al\u00e1 t\u00f6rnek. */
+    .result table,
+    .result tbody,
+    .result tr,
+    .result th,
+    .result td {
+        display: block;
+        width: 100%;
+    }
+
+    .result tr {
+        padding: .5rem 0;
+        border-bottom: 1px solid #e6ebe9;
+    }
+
+    .result th,
+    .result td {
+        border: 0;
+        padding: 0;
+    }
+
+    .result th {
+        color: var(--muted);
+        font-size: .82rem;
+        font-weight: 600;
+    }
+
+    .result td:last-child,
+    .result th:last-child {
+        text-align: left;
+    }
 }
