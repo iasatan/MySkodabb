@@ -93,7 +93,7 @@ async function toApiError(response) {
 // ugyanis soha nem viszi magával az X-API-Key fejlécet, ezért 401-gyel bukna el.
 async function requestVehicle({ apiKey, vin, baseUrl, keyInQuery }) {
     const url = new URL(`${baseUrl}/api/v1/vehicles/${encodeURIComponent(vin)}`);
-    url.searchParams.set("include", "CHARGING");
+    url.searchParams.set("include", "charging");
 
     if (keyInQuery) {
         url.searchParams.set("apiKey", apiKey);
