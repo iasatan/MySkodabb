@@ -123,6 +123,62 @@ h1 {
     background: #5ce295;
 }
 
+.btn.ghost {
+    background: transparent;
+    color: var(--emerald);
+    border: 1px solid var(--emerald);
+}
+
+.btn.ghost:hover {
+    background: rgba(14, 58, 47, .08);
+}
+
+.btn.ghost.danger {
+    color: #b3261e;
+    border-color: #b3261e;
+}
+
+.btn.ghost.danger:hover {
+    background: rgba(179, 38, 30, .08);
+}
+
+.actions {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+}
+
+.actions .btn {
+    margin-top: 0;
+}
+
+.link-btn {
+    align-self: flex-start;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--emerald);
+    font-size: .85rem;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.link-btn:disabled {
+    color: var(--muted);
+    cursor: progress;
+}
+
+.hint {
+    margin: 0;
+    font-size: .82rem;
+    color: var(--muted);
+}
+
+.hint.error {
+    color: #b3261e;
+}
+
 .cards {
     max-width: 980px;
     margin: -3rem auto 3rem;
@@ -198,6 +254,19 @@ form.panel .btn {
 .field input:focus {
     outline: 2px solid var(--electric);
     border-color: var(--emerald);
+}
+
+.field.checkbox label {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-weight: 500;
+    color: var(--ink);
+}
+
+.field.checkbox input {
+    width: auto;
+    accent-color: var(--emerald);
 }
 
 .result {

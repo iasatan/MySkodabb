@@ -31,6 +31,26 @@ form.addEventListener("submit", (event) => {
     render(calculate({ fuelPrice, elecPrice, battery, distance }));
 });
 
+const fetchBatteryBtn = document.getElementById("fetch-battery");
+const batteryHint = document.getElementById("battery-hint");
+
+fetchBatteryBtn.addEventListener("click", async () => {
+    fetchBatteryBtn.disabled = true;
+    batteryHint.className = "hint";
+    batteryHint.textContent = "Lekérés folyamatban…";
+    try {
+        const { stateOfCharge, remainingRequests } = await fetchBatteryPercentage();
+        document.getElementById("battery").value = Math.round(stateOfCharge);
+        const quota = remainingRequests ? ` (még ${remainingRequests} lekérés ebben az órában)` : "";
+        batteryHint.textContent = `Az autó jelenlegi töltöttsége: ${stateOfCharge}%${quota}`;
+    } catch (error) {
+        batteryHint.className = "hint error";
+        batteryHint.textContent = error.message;
+    } finally {
+        fetchBatteryBtn.disabled = false;
+    }
+});
+
 function calculate({ fuelPrice, elecPrice, battery, distance }) {
     const stored = BATTERY_KWH * (battery / 100);
     const evRange = stored / EV_KWH_PER_KM;

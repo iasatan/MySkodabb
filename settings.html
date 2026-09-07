@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Beállítások | Škoda Utility</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="index.html">
+        <span class="brand-mark">ŠKODA</span>
+        <span class="brand-sub">Utility</span>
+    </a>
+    <nav>
+        <a href="index.html">Kezdőlap</a>
+        <a href="calculator.html">Töltés kalkulátor</a>
+        <a href="settings.html" class="active">Beállítások</a>
+    </nav>
+</header>
+
+<main class="page">
+    <h1>Beállítások</h1>
+    <p class="lead">
+        Az API kulcs és a VIN csak ebben a böngészőben, a localStorage-ban tárolódik –
+        nem küldjük el sehova a Škoda API-n kívül.
+    </p>
+
+    <form id="settings-form" class="panel" novalidate autocomplete="off">
+        <div class="field">
+            <label for="apiKey">MyŠkoda Public API kulcs (X-API-Key)</label>
+            <input type="password" id="apiKey" placeholder="a MyŠkoda appban létrehozott kulcs" autocomplete="off" />
+        </div>
+        <div class="field">
+            <label for="vin">VIN</label>
+            <input type="text" id="vin" maxlength="17" placeholder="TMBJJ7NX0MY000000" spellcheck="false" />
+        </div>
+        <div class="field">
+            <label for="baseUrl">API alapcím (opcionális proxy)</label>
+            <input type="url" id="baseUrl" placeholder="https://public.api.connect.skoda-auto.cz" />
+        </div>
+        <div class="field checkbox">
+            <label for="keyInQuery">
+                <input type="checkbox" id="keyInQuery" />
+                Proxy mód: kulcs query paraméterben (nincs CORS preflight)
+            </label>
+            <p class="hint">Csak saját proxy-val használd – a hivatalos API fejlécben várja a kulcsot.</p>
+        </div>
+        <div class="actions">
+            <button class="btn" type="submit">Mentés</button>
+            <button class="btn ghost" type="button" id="test-btn">Kapcsolat tesztelése</button>
+            <button class="btn ghost danger" type="button" id="clear-btn">Törlés</button>
+        </div>
+    </form>
+
+    <section id="settings-status" class="result" hidden></section>
+
+    <section class="panel assumptions">
+        <h2>Jó tudni</h2>
+        <ul>
+            <li>A kulcsot a MyŠkoda mobilappban tudod létrehozni és kezelni: <a href="https://go.skoda.eu/api-keys">go.skoda.eu/api-keys</a>.</li>
+            <li>A kulcs csak a kiválasztáskor megadott járművekre érvényes és lejár; a lejárat a válasz <code>X-API-Key-Expires-At</code> fejlécében jön.</li>
+            <li>A lekérdezés VIN-enként óránként 20 kérésre korlátozott.</li>
+            <li>
+                Böngészőből közvetlenül nem megy: az <code>X-API-Key</code> fejléc CORS preflightot vált ki,
+                az <code>OPTIONS</code> kérés viszont nem viszi magával a kulcsot, így 401-et kap.
+                Ezért kell proxy (példa: <code>proxy/worker.js</code> a repóban) és a fenti proxy mód.
+            </li>
+            <li>A localStorage-ban tárolt kulcs XSS esetén kiolvasható; közös gépen inkább töröld használat után.</li>
+        </ul>
+        <p class="note">
+            Dokumentáció: <a href="https://public.api.connect.skoda-auto.cz/docs">MyŠkoda Public API</a>
+        </p>
+    </section>
+</main>
+
+<footer class="footer">
+    <p>Nem hivatalos, rajongói segédoldal. Škoda Auto a.s. védjegyei a jogtulajdonosé.</p>
+</footer>
+
+<script src="skodaApi.js"></script>
+<script src="settings.js"></script>
+</body>
+</html>
