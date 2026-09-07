@@ -48,24 +48,32 @@ setLimitBtn.addEventListener("click", async () => {
 });
 
 const fetchBatteryBtn = document.getElementById("fetch-battery");
+const refreshBatteryBtn = document.getElementById("refresh-battery");
 const batteryHint = document.getElementById("battery-hint");
+const time = new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" });
 
-fetchBatteryBtn.addEventListener("click", async () => {
+async function loadBattery(forceRefresh) {
     fetchBatteryBtn.disabled = true;
+    refreshBatteryBtn.disabled = true;
     batteryHint.className = "hint";
     batteryHint.textContent = "Lekérés folyamatban…";
     try {
-        const { stateOfCharge, remainingRequests } = await fetchBatteryPercentage();
+        const { stateOfCharge, fetchedAt, fromCache, remainingRequests } = await fetchBatteryPercentage({ forceRefresh });
         document.getElementById("battery").value = Math.round(stateOfCharge);
-        const quota = remainingRequests ? ` (még ${remainingRequests} lekérés ebben az órában)` : "";
-        batteryHint.textContent = `Az autó jelenlegi töltöttsége: ${stateOfCharge}%${quota}`;
+        const source = fromCache ? "gyorsítótárból" : "friss";
+        const quota = remainingRequests ? `, még ${remainingRequests} lekérés ebben az órában` : "";
+        batteryHint.textContent = `Töltöttség: ${stateOfCharge}% (${source}, ${time.format(fetchedAt)}${quota})`;
     } catch (error) {
         batteryHint.className = "hint error";
         batteryHint.textContent = error.message;
     } finally {
         fetchBatteryBtn.disabled = false;
+        refreshBatteryBtn.disabled = false;
     }
-});
+}
+
+fetchBatteryBtn.addEventListener("click", () => loadBattery(false));
+refreshBatteryBtn.addEventListener("click", () => loadBattery(true));
 
 function calculate({ fuelPrice, elecPrice, battery, distance }) {
     const settings = loadSkodaSettings();

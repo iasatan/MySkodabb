@@ -1,4 +1,7 @@
 const SKODA_STORAGE_KEY = "skoda-utility-settings";
+const SKODA_CACHE_KEY = "skoda-utility-vehicle-cache";
+// Óránként 20 kérés a limit, ezért 15 percnél fiatalabb adatot nem kérdezünk le újra.
+const SKODA_CACHE_TTL_MS = 15 * 60 * 1000;
 const SKODA_WORKER_BASE_URL = "https://skoda-api-proxy.satanadam.workers.dev";
 const DEFAULT_BATTERY_KWH = 25.7;
 const DEFAULT_FUEL_L_PER_100_KM = 6;
@@ -60,6 +63,25 @@ function saveSkodaSettings({ apiKey, vin, batteryKwh, fuelLitresPer100Km, evKwhP
 
 function clearSkodaSettings() {
     localStorage.removeItem(SKODA_STORAGE_KEY);
+    localStorage.removeItem(SKODA_CACHE_KEY);
+}
+
+function readCachedVehicle(vin) {
+    try {
+        const cached = JSON.parse(localStorage.getItem(SKODA_CACHE_KEY) || "null");
+        if (!cached || cached.vin !== vin) {
+            return null;
+        }
+        return Date.now() - cached.fetchedAt < SKODA_CACHE_TTL_MS ? cached : null;
+    } catch {
+        return null;
+    }
+}
+
+function writeCachedVehicle(vin, data) {
+    const entry = { vin, data, fetchedAt: Date.now() };
+    localStorage.setItem(SKODA_CACHE_KEY, JSON.stringify(entry));
+    return entry;
 }
 
 function isValidVin(vin) {
@@ -115,7 +137,6 @@ async function toApiError(response) {
 // ugyanis soha nem viszi magával az X-API-Key fejlécet, ezért 401-gyel bukna el.
 async function requestVehicle({ apiKey, vin, baseUrl, keyInQuery }) {
     const url = new URL(`${baseUrl}/api/v1/vehicles/${encodeURIComponent(vin)}`);
-    url.searchParams.set("include", "charging");
 
     if (keyInQuery) {
         url.searchParams.set("apiKey", apiKey);
@@ -129,7 +150,7 @@ async function requestVehicle({ apiKey, vin, baseUrl, keyInQuery }) {
     });
 }
 
-async function fetchBatteryPercentage() {
+async function fetchVehicle({ forceRefresh = false } = {}) {
     const settings = loadSkodaSettings();
 
     if (!settings.apiKey || !settings.vin) {
@@ -139,27 +160,81 @@ async function fetchBatteryPercentage() {
         throw new Error("A VIN formátuma érvénytelen (17 karakter).");
     }
 
+    if (!forceRefresh) {
+        const cached = readCachedVehicle(settings.vin);
+        if (cached) {
+            return { data: cached.data, fetchedAt: cached.fetchedAt, fromCache: true };
+        }
+    }
+
     const response = await requestVehicle(settings);
     if (!response.ok) {
         throw await toApiError(response);
     }
 
     const data = await response.json();
-    const soc = extractStateOfCharge(data);
+    const entry = writeCachedVehicle(settings.vin, data);
+
+    return {
+        data,
+        fetchedAt: entry.fetchedAt,
+        fromCache: false,
+        keyExpiresAt: response.headers.get("X-API-Key-Expires-At"),
+        remainingRequests: response.headers.get("RateLimit-Remaining")
+    };
+}
+
+function firstNumber(...candidates) {
+    const value = candidates.find((v) => typeof v === "number" && Number.isFinite(v));
+    return value === undefined ? null : value;
+}
+
+function summarizeVehicle(data) {
+    const vehicle = data?.vehicle ?? data;
+    const position = vehicle?.parkingPosition;
+    const latitude = firstNumber(position?.latitude, position?.lat, position?.gpsCoordinates?.latitude);
+    const longitude = firstNumber(position?.longitude, position?.lng, position?.gpsCoordinates?.longitude);
+
+    return {
+        name: vehicle?.name || null,
+        licensePlate: vehicle?.licensePlate || null,
+        vin: vehicle?.vin || null,
+        doorsLocked: vehicle?.status?.overall?.doorsLocked || null,
+        lights: vehicle?.status?.overall?.lights || null,
+        odometerKm: firstNumber(vehicle?.odometer?.odometerInKm, vehicle?.odometer?.mileageInKm),
+        fuelLevelPercent: firstNumber(
+            vehicle?.fuelStatus?.primaryEngineRange?.currentFuelLevelInPercent,
+            vehicle?.fuelStatus?.currentFuelLevelInPercent
+        ),
+        fuelRangeKm: firstNumber(
+            vehicle?.fuelStatus?.primaryEngineRange?.remainingRangeInKm,
+            vehicle?.fuelStatus?.totalRangeInKm
+        ),
+        stateOfCharge: extractStateOfCharge(data),
+        electricRangeKm: firstNumber(
+            vehicle?.charging?.status?.battery?.remainingCruisingRangeInMeters / 1000,
+            vehicle?.charging?.status?.battery?.remainingCruisingRangeInKm
+        ),
+        chargingState: vehicle?.charging?.status?.state || null,
+        targetSoc: firstNumber(vehicle?.charging?.settings?.targetStateOfChargeInPercent),
+        parkingPosition: latitude !== null && longitude !== null ? { latitude, longitude } : null,
+        parkedAt: position?.carCapturedTimestamp || null,
+        errors: describeVehicleErrors(data)
+    };
+}
+
+async function fetchBatteryPercentage(options) {
+    const result = await fetchVehicle(options);
+    const soc = extractStateOfCharge(result.data);
     if (soc === null) {
-        const reason = describeVehicleErrors(data);
+        const reason = describeVehicleErrors(result.data);
         throw new Error(
             reason
                 ? `A töltöttség most nem érhető el (${reason}).`
                 : "A válaszban nem található töltöttségi érték."
         );
     }
-
-    return {
-        stateOfCharge: soc,
-        keyExpiresAt: response.headers.get("X-API-Key-Expires-At"),
-        remainingRequests: response.headers.get("RateLimit-Remaining")
-    };
+    return { ...result, stateOfCharge: soc };
 }
 
 async function setChargingLimit(targetPercent) {

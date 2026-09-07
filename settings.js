@@ -58,7 +58,7 @@ document.getElementById("test-btn").addEventListener("click", async () => {
     });
     showStatus("Lekérés folyamatban…", "ok");
     try {
-        const { stateOfCharge, keyExpiresAt } = await fetchBatteryPercentage();
+        const { stateOfCharge, keyExpiresAt } = await fetchBatteryPercentage({ forceRefresh: true });
         const expiry = keyExpiresAt ? ` A kulcs lejárata: ${keyExpiresAt}.` : "";
         showStatus(`Sikeres kapcsolat – az akkumulátor töltöttsége ${stateOfCharge}%.${expiry}`, "ok");
     } catch (error) {

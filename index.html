@@ -46,8 +46,25 @@
     </article>
 </section>
 
+<section class="page" id="vehicle-section">
+    <div class="section-head">
+        <h2>Az autóm</h2>
+        <button type="button" id="refresh-vehicle" class="link-btn">Frissítés</button>
+    </div>
+    <p class="hint" id="vehicle-hint">Betöltés…</p>
+    <div class="cards vehicle-cards" id="vehicle-cards"></div>
+    <div class="panel map-panel" id="map-panel" hidden>
+        <h3>Hol parkol</h3>
+        <iframe id="map-frame" title="Parkolási pozíció" loading="lazy" referrerpolicy="no-referrer"></iframe>
+        <p class="note"><a id="map-link" href="#" target="_blank" rel="noopener noreferrer">Megnyitás nagy térképen</a></p>
+    </div>
+</section>
+
 <footer class="footer">
     <p>Nem hivatalos, rajongói segédoldal. Škoda Auto a.s. védjegyei a jogtulajdonosé.</p>
 </footer>
+
+<script src="skodaApi.js"></script>
+<script src="home.js"></script>
 </body>
 </html>
