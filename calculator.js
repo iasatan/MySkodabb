@@ -74,6 +74,7 @@ async function loadBattery(forceRefresh) {
 
 fetchBatteryBtn.addEventListener("click", () => loadBattery(false));
 refreshBatteryBtn.addEventListener("click", () => loadBattery(true));
+window.addEventListener("DOMContentLoaded", () => loadBattery(false));
 
 function calculate({ fuelPrice, elecPrice, battery, distance }) {
     const settings = loadSkodaSettings();
