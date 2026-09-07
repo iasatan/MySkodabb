@@ -4,7 +4,7 @@
 // így nincs preflight, és a fejlécet a worker teszi rá.
 
 const UPSTREAM = "https://public.api.connect.skoda-auto.cz";
-const ALLOWED_ORIGIN = "https://YOUR-USERNAME.github.io";
+const ALLOWED_ORIGIN = "https://iasatan.github.io";
 const VEHICLE_PATH = /^\/api\/v1\/vehicles\/[A-HJ-NPR-Z0-9]{17}$/;
 
 function corsHeaders() {

@@ -1,6 +1,3 @@
-const BATTERY_KWH = 25.7;
-const FUEL_L_PER_KM = 6 / 100;
-const EV_KWH_PER_KM = 18 / 100;
 const CHARGING_EFFICIENCY = 0.9;
 
 const form = document.getElementById("calc-form");
@@ -52,24 +49,28 @@ fetchBatteryBtn.addEventListener("click", async () => {
 });
 
 function calculate({ fuelPrice, elecPrice, battery, distance }) {
-    const stored = BATTERY_KWH * (battery / 100);
-    const evRange = stored / EV_KWH_PER_KM;
-    const neededKwh = distance * EV_KWH_PER_KM;
+    const settings = loadSkodaSettings();
+    const batteryKwh = settings.batteryKwh;
+    const fuelLitresPerKm = settings.fuelLitresPer100Km / 100;
+    const evKwhPerKm = settings.evKwhPer100Km / 100;
+    const stored = batteryKwh * (battery / 100);
+    const evRange = stored / evKwhPerKm;
+    const neededKwh = distance * evKwhPerKm;
     const deficitKwh = Math.max(0, neededKwh - stored);
-    const deficitKm = deficitKwh / EV_KWH_PER_KM;
+    const deficitKm = deficitKwh / evKwhPerKm;
 
     // A töltéshez a hálózatból a veszteség miatt több energiát kell vennünk.
     const gridKwh = deficitKwh / CHARGING_EFFICIENCY;
     const chargeCost = gridKwh * elecPrice;
-    const fuelLitres = deficitKm * FUEL_L_PER_KM;
+    const fuelLitres = deficitKm * fuelLitresPerKm;
     const fuelCost = fuelLitres * fuelPrice;
 
-    const evCostPerKm = (EV_KWH_PER_KM / CHARGING_EFFICIENCY) * elecPrice;
-    const fuelCostPerKm = FUEL_L_PER_KM * fuelPrice;
-    const breakEvenElecPrice = fuelCostPerKm / (EV_KWH_PER_KM / CHARGING_EFFICIENCY);
-    const breakEvenFuelPrice = evCostPerKm / FUEL_L_PER_KM;
+    const evCostPerKm = (evKwhPerKm / CHARGING_EFFICIENCY) * elecPrice;
+    const fuelCostPerKm = fuelLitresPerKm * fuelPrice;
+    const breakEvenElecPrice = fuelCostPerKm / (evKwhPerKm / CHARGING_EFFICIENCY);
+    const breakEvenFuelPrice = evCostPerKm / fuelLitresPerKm;
 
-    const fullChargeKwh = (BATTERY_KWH - stored) / CHARGING_EFFICIENCY;
+    const fullChargeKwh = (batteryKwh - stored) / CHARGING_EFFICIENCY;
 
     return {
         distance,

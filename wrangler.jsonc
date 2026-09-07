@@ -1,0 +1,5 @@
+{
+  "name": "skoda-api-proxy",
+  "compatibility_date": "2026-09-03",
+  "main": "proxy/worker.js"
+}

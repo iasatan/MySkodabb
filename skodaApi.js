@@ -1,5 +1,13 @@
 const SKODA_STORAGE_KEY = "skoda-utility-settings";
-const SKODA_DEFAULT_BASE_URL = "https://public.api.connect.skoda-auto.cz";
+const SKODA_WORKER_BASE_URL = "https://skoda-api-proxy.satanadam.workers.dev";
+const DEFAULT_BATTERY_KWH = 25.7;
+const DEFAULT_FUEL_L_PER_100_KM = 6;
+const DEFAULT_EV_KWH_PER_100_KM = 18;
+
+function positiveNumberOrDefault(value, defaultValue) {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : defaultValue;
+}
 
 function loadSkodaSettings() {
     try {
@@ -8,11 +16,22 @@ function loadSkodaSettings() {
         return {
             apiKey: parsed.apiKey || "",
             vin: parsed.vin || "",
-            baseUrl: parsed.baseUrl || SKODA_DEFAULT_BASE_URL,
-            keyInQuery: parsed.keyInQuery === true
+            baseUrl: SKODA_WORKER_BASE_URL,
+            keyInQuery: true,
+            batteryKwh: positiveNumberOrDefault(parsed.batteryKwh, DEFAULT_BATTERY_KWH),
+            fuelLitresPer100Km: positiveNumberOrDefault(parsed.fuelLitresPer100Km, DEFAULT_FUEL_L_PER_100_KM),
+            evKwhPer100Km: positiveNumberOrDefault(parsed.evKwhPer100Km, DEFAULT_EV_KWH_PER_100_KM)
         };
     } catch {
-        return { apiKey: "", vin: "", baseUrl: SKODA_DEFAULT_BASE_URL, keyInQuery: false };
+        return {
+            apiKey: "",
+            vin: "",
+            baseUrl: SKODA_WORKER_BASE_URL,
+            keyInQuery: true,
+            batteryKwh: DEFAULT_BATTERY_KWH,
+            fuelLitresPer100Km: DEFAULT_FUEL_L_PER_100_KM,
+            evKwhPer100Km: DEFAULT_EV_KWH_PER_100_KM
+        };
     }
 }
 
@@ -24,14 +43,17 @@ function trimTrailingSlashes(value) {
     return value.slice(0, end);
 }
 
-function saveSkodaSettings({ apiKey, vin, baseUrl, keyInQuery }) {
+function saveSkodaSettings({ apiKey, vin, batteryKwh, fuelLitresPer100Km, evKwhPer100Km }) {
     localStorage.setItem(
         SKODA_STORAGE_KEY,
         JSON.stringify({
             apiKey: (apiKey || "").trim(),
             vin: (vin || "").trim().toUpperCase(),
-            baseUrl: trimTrailingSlashes((baseUrl || "").trim()) || SKODA_DEFAULT_BASE_URL,
-            keyInQuery: keyInQuery === true
+            baseUrl: SKODA_WORKER_BASE_URL,
+            keyInQuery: true,
+            batteryKwh: positiveNumberOrDefault(batteryKwh, DEFAULT_BATTERY_KWH),
+            fuelLitresPer100Km: positiveNumberOrDefault(fuelLitresPer100Km, DEFAULT_FUEL_L_PER_100_KM),
+            evKwhPer100Km: positiveNumberOrDefault(evKwhPer100Km, DEFAULT_EV_KWH_PER_100_KM)
         })
     );
 }
@@ -93,7 +115,7 @@ async function toApiError(response) {
 // ugyanis soha nem viszi magával az X-API-Key fejlécet, ezért 401-gyel bukna el.
 async function requestVehicle({ apiKey, vin, baseUrl, keyInQuery }) {
     const url = new URL(`${baseUrl}/api/v1/vehicles/${encodeURIComponent(vin)}`);
-    url.searchParams.set("include", "CHARGING");
+    url.searchParams.set("include", "charging");
 
     if (keyInQuery) {
         url.searchParams.set("apiKey", apiKey);

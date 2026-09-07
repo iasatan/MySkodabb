@@ -23,7 +23,7 @@
     <h1>Beállítások</h1>
     <p class="lead">
         Az API kulcs és a VIN csak ebben a böngészőben, a localStorage-ban tárolódik –
-        nem küldjük el sehova a Škoda API-n kívül.
+        a lekérés a telepített Cloudflare proxyn keresztül jut el a Škoda API-hoz.
     </p>
 
     <form id="settings-form" class="panel" novalidate autocomplete="off">
@@ -36,15 +36,16 @@
             <input type="text" id="vin" maxlength="17" placeholder="TMBJJ7NX0MY000000" spellcheck="false" />
         </div>
         <div class="field">
-            <label for="baseUrl">API alapcím (opcionális proxy)</label>
-            <input type="url" id="baseUrl" placeholder="https://public.api.connect.skoda-auto.cz" />
+            <label for="batteryKwh">Akkumulátor kapacitás (kWh)</label>
+            <input type="number" id="batteryKwh" min="0.1" step="0.1" value="25.7" required />
         </div>
-        <div class="field checkbox">
-            <label for="keyInQuery">
-                <input type="checkbox" id="keyInQuery" />
-                Proxy mód: kulcs query paraméterben (nincs CORS preflight)
-            </label>
-            <p class="hint">Csak saját proxy-val használd – a hivatalos API fejlécben várja a kulcsot.</p>
+        <div class="field">
+            <label for="fuelLitresPer100Km">Hibrid fogyasztás (l/100 km)</label>
+            <input type="number" id="fuelLitresPer100Km" min="0.1" step="0.1" value="6" required />
+        </div>
+        <div class="field">
+            <label for="evKwhPer100Km">Elektromos fogyasztás (kWh/100 km)</label>
+            <input type="number" id="evKwhPer100Km" min="0.1" step="0.1" value="18" required />
         </div>
         <div class="actions">
             <button class="btn" type="submit">Mentés</button>
@@ -61,11 +62,7 @@
             <li>A kulcsot a MyŠkoda mobilappban tudod létrehozni és kezelni: <a href="https://go.skoda.eu/api-keys">go.skoda.eu/api-keys</a>.</li>
             <li>A kulcs csak a kiválasztáskor megadott járművekre érvényes és lejár; a lejárat a válasz <code>X-API-Key-Expires-At</code> fejlécében jön.</li>
             <li>A lekérdezés VIN-enként óránként 20 kérésre korlátozott.</li>
-            <li>
-                Böngészőből közvetlenül nem megy: az <code>X-API-Key</code> fejléc CORS preflightot vált ki,
-                az <code>OPTIONS</code> kérés viszont nem viszi magával a kulcsot, így 401-et kap.
-                Ezért kell proxy (példa: <code>proxy/worker.js</code> a repóban) és a fenti proxy mód.
-            </li>
+            <li>A lekérés a <code>skoda-api-proxy.satanadam.workers.dev</code> Cloudflare Workeren keresztül történik.</li>
             <li>A localStorage-ban tárolt kulcs XSS esetén kiolvasható; közös gépen inkább töröld használat után.</li>
         </ul>
         <p class="note">
