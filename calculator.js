@@ -28,6 +28,25 @@ form.addEventListener("submit", (event) => {
     render(calculate({ fuelPrice, elecPrice, battery, distance }));
 });
 
+const targetSocInput = document.getElementById("targetSoc");
+const setLimitBtn = document.getElementById("set-limit");
+const limitHint = document.getElementById("limit-hint");
+
+setLimitBtn.addEventListener("click", async () => {
+    setLimitBtn.disabled = true;
+    limitHint.className = "hint";
+    limitHint.textContent = "Beállítás folyamatban…";
+    try {
+        const target = await setChargingLimit(Number(targetSocInput.value));
+        limitHint.textContent = `A töltési limit ${target}%-ra állítva.`;
+    } catch (error) {
+        limitHint.className = "hint error";
+        limitHint.textContent = error.message;
+    } finally {
+        setLimitBtn.disabled = false;
+    }
+});
+
 const fetchBatteryBtn = document.getElementById("fetch-battery");
 const batteryHint = document.getElementById("battery-hint");
 
@@ -71,6 +90,7 @@ function calculate({ fuelPrice, elecPrice, battery, distance }) {
     const breakEvenFuelPrice = evCostPerKm / fuelLitresPerKm;
 
     const fullChargeKwh = (batteryKwh - stored) / CHARGING_EFFICIENCY;
+    const requiredSoc = Math.min(100, Math.ceil((neededKwh / batteryKwh) * 100));
 
     return {
         distance,
@@ -88,6 +108,7 @@ function calculate({ fuelPrice, elecPrice, battery, distance }) {
         breakEvenElecPrice,
         breakEvenFuelPrice,
         fullChargeKwh,
+        requiredSoc,
         fullChargeCost: fullChargeKwh * elecPrice,
         savings: fuelCost - chargeCost
     };
@@ -96,6 +117,10 @@ function calculate({ fuelPrice, elecPrice, battery, distance }) {
 function render(r) {
     const chargeIsBetter = r.evCostPerKm < r.fuelCostPerKm;
     const enoughRange = r.deficitKwh === 0;
+
+    targetSocInput.value = r.requiredSoc;
+    limitHint.className = "hint";
+    limitHint.textContent = `${num.format(r.distance)} km-hez ${r.requiredSoc}% kell – átírható, majd átküldhető az autóba.`;
 
     let verdict;
     let mode;
@@ -118,6 +143,7 @@ function render(r) {
             <tbody>
                 <tr><th>Elektromos hatótáv most</th><td>${num.format(r.evRange)} km (${num.format(r.stored)} kWh)</td></tr>
                 <tr><th>Út hossza</th><td>${num.format(r.distance)} km</td></tr>
+                <tr><th>Ehhez szükséges töltöttség</th><td>${r.requiredSoc}%</td></tr>
                 <tr><th>Árammal nem fedezett szakasz</th><td>${num.format(r.deficitKm)} km</td></tr>
                 <tr><th>Ehhez szükséges töltés (hálózatból)</th><td>${num.format(r.gridKwh)} kWh &rarr; <strong>${huf.format(r.chargeCost)} Ft</strong></td></tr>
                 <tr><th>Ugyanez benzinnel</th><td>${num.format(r.fuelLitres)} l &rarr; <strong>${huf.format(r.fuelCost)} Ft</strong></td></tr>

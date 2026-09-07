@@ -161,3 +161,33 @@ async function fetchBatteryPercentage() {
         remainingRequests: response.headers.get("RateLimit-Remaining")
     };
 }
+
+async function setChargingLimit(targetPercent) {
+    const settings = loadSkodaSettings();
+
+    if (!settings.apiKey || !settings.vin) {
+        throw new Error("Hiányzik az API kulcs vagy a VIN. Töltsd ki a Beállítások oldalon.");
+    }
+    if (!isValidVin(settings.vin)) {
+        throw new Error("A VIN formátuma érvénytelen (17 karakter).");
+    }
+
+    const target = Math.round(targetPercent);
+    if (!Number.isFinite(target) || target < 0 || target > 100) {
+        throw new Error("A cél töltöttség 0 és 100% között lehet.");
+    }
+
+    const url = new URL(`${settings.baseUrl}/api/v1/vehicles/${encodeURIComponent(settings.vin)}/charging/limit`);
+    url.searchParams.set("apiKey", settings.apiKey);
+
+    const response = await fetch(url.toString(), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetSOCInPercent: target })
+    });
+
+    if (!response.ok) {
+        throw await toApiError(response);
+    }
+    return target;
+}
