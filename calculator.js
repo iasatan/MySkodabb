@@ -105,7 +105,7 @@ async function fetchRouteDistance() {
     }
 
     const routeUrl = `https://router.project-osrm.org/route/v1/driving/${parkingPosition.longitude},${parkingPosition.latitude};${locations[0].lon},${locations[0].lat}`;
-    const routeResponse = await fetch(`${routeUrl}?overview=false`);
+    const routeResponse = await fetch(`${routeUrl}?overview=false&alternatives=true`);
     if (!routeResponse.ok) {
         throw new Error("Az útvonal lekérése sikertelen.");
     }
@@ -113,7 +113,10 @@ async function fetchRouteDistance() {
     if (route.code !== "Ok" || !route.routes?.length) {
         throw new Error("Nem található autós útvonal a jelenlegi hely és az otthon között.");
     }
-    return route.routes[0].distance / 1000;
+    const shortestRoute = route.routes.reduce((shortest, current) =>
+        current.distance < shortest.distance ? current : shortest
+    );
+    return shortestRoute.distance / 1000;
 }
 
 async function loadRouteDistance() {
