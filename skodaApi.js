@@ -19,6 +19,7 @@ function loadSkodaSettings() {
         return {
             apiKey: parsed.apiKey || "",
             vin: parsed.vin || "",
+            homeAddress: parsed.homeAddress || "",
             baseUrl: SKODA_WORKER_BASE_URL,
             keyInQuery: true,
             batteryKwh: positiveNumberOrDefault(parsed.batteryKwh, DEFAULT_BATTERY_KWH),
@@ -29,6 +30,7 @@ function loadSkodaSettings() {
         return {
             apiKey: "",
             vin: "",
+            homeAddress: "",
             baseUrl: SKODA_WORKER_BASE_URL,
             keyInQuery: true,
             batteryKwh: DEFAULT_BATTERY_KWH,
@@ -46,12 +48,13 @@ function trimTrailingSlashes(value) {
     return value.slice(0, end);
 }
 
-function saveSkodaSettings({ apiKey, vin, batteryKwh, fuelLitresPer100Km, evKwhPer100Km }) {
+function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer100Km, evKwhPer100Km }) {
     localStorage.setItem(
         SKODA_STORAGE_KEY,
         JSON.stringify({
             apiKey: (apiKey || "").trim(),
             vin: (vin || "").trim().toUpperCase(),
+            homeAddress: (homeAddress || "").trim(),
             baseUrl: SKODA_WORKER_BASE_URL,
             keyInQuery: true,
             batteryKwh: positiveNumberOrDefault(batteryKwh, DEFAULT_BATTERY_KWH),

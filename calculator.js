@@ -2,6 +2,9 @@ const CHARGING_EFFICIENCY = 0.9;
 
 const form = document.getElementById("calc-form");
 const resultBox = document.getElementById("result");
+const distanceInput = document.getElementById("distance");
+const routeDistanceBtn = document.getElementById("route-distance");
+const routeHint = document.getElementById("route-hint");
 
 const huf = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 0 });
 const num = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 1 });
@@ -12,7 +15,7 @@ form.addEventListener("submit", (event) => {
     const fuelPrice = Number(document.getElementById("fuelPrice").value);
     const elecPrice = Number(document.getElementById("elecPrice").value);
     const battery = Number(document.getElementById("battery").value);
-    const distance = Number(document.getElementById("distance").value);
+    const distance = Number(distanceInput.value);
 
     const valid =
         [fuelPrice, elecPrice, battery, distance].every((v) => Number.isFinite(v) && v >= 0) &&
@@ -75,6 +78,69 @@ async function loadBattery(forceRefresh) {
 fetchBatteryBtn.addEventListener("click", () => loadBattery(false));
 refreshBatteryBtn.addEventListener("click", () => loadBattery(true));
 window.addEventListener("DOMContentLoaded", () => loadBattery(false));
+
+function getCurrentPosition() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error("A böngésző nem támogatja a helymeghatározást."));
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(resolve, () => {
+            reject(new Error("Nem sikerült lekérni a jelenlegi GPS-pozíciót."));
+        }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+    });
+}
+
+async function fetchRouteDistance() {
+    const { homeAddress } = loadSkodaSettings();
+    if (!homeAddress) {
+        throw new Error("Előbb add meg az otthoni címet a Beállítások oldalon.");
+    }
+
+    const position = await getCurrentPosition();
+    const geocodeUrl = new URL("https://nominatim.openstreetmap.org/search");
+    geocodeUrl.searchParams.set("q", homeAddress);
+    geocodeUrl.searchParams.set("format", "jsonv2");
+    geocodeUrl.searchParams.set("limit", "1");
+    const geocodeResponse = await fetch(geocodeUrl);
+    if (!geocodeResponse.ok) {
+        throw new Error("A cím koordinátáinak lekérése sikertelen.");
+    }
+    const locations = await geocodeResponse.json();
+    if (!locations.length) {
+        throw new Error("A megadott otthoni cím nem található.");
+    }
+
+    const routeUrl = `https://router.project-osrm.org/route/v1/driving/${position.coords.longitude},${position.coords.latitude};${locations[0].lon},${locations[0].lat}`;
+    const routeResponse = await fetch(`${routeUrl}?overview=false`);
+    if (!routeResponse.ok) {
+        throw new Error("Az útvonal lekérése sikertelen.");
+    }
+    const route = await routeResponse.json();
+    if (route.code !== "Ok" || !route.routes?.length) {
+        throw new Error("Nem található autós útvonal a jelenlegi hely és az otthon között.");
+    }
+    return route.routes[0].distance / 1000;
+}
+
+async function loadRouteDistance() {
+    routeDistanceBtn.disabled = true;
+    routeHint.className = "hint";
+    routeHint.textContent = "GPS-pozíció és útvonal lekérése…";
+    try {
+        const distance = await fetchRouteDistance();
+        distanceInput.value = distance.toFixed(1);
+        routeHint.textContent = `Útvonal távolsága: ${num.format(distance)} km.`;
+    } catch (error) {
+        routeHint.className = "hint error";
+        routeHint.textContent = error.message;
+    } finally {
+        routeDistanceBtn.disabled = false;
+    }
+}
+
+routeDistanceBtn.addEventListener("click", loadRouteDistance);
+window.addEventListener("DOMContentLoaded", loadRouteDistance);
 
 function calculate({ fuelPrice, elecPrice, battery, distance }) {
     const settings = loadSkodaSettings();

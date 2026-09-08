@@ -1,6 +1,7 @@
 const settingsForm = document.getElementById("settings-form");
 const apiKeyInput = document.getElementById("apiKey");
 const vinInput = document.getElementById("vin");
+const homeAddressInput = document.getElementById("homeAddress");
 const batteryKwhInput = document.getElementById("batteryKwh");
 const fuelLitresPer100KmInput = document.getElementById("fuelLitresPer100Km");
 const evKwhPer100KmInput = document.getElementById("evKwhPer100Km");
@@ -9,6 +10,7 @@ const statusBox = document.getElementById("settings-status");
 const current = loadSkodaSettings();
 apiKeyInput.value = current.apiKey;
 vinInput.value = current.vin;
+homeAddressInput.value = current.homeAddress;
 batteryKwhInput.value = current.batteryKwh;
 fuelLitresPer100KmInput.value = current.fuelLitresPer100Km;
 evKwhPer100KmInput.value = current.evKwhPer100Km;
@@ -40,6 +42,7 @@ settingsForm.addEventListener("submit", (event) => {
     saveSkodaSettings({
         apiKey: apiKeyInput.value,
         vin,
+        homeAddress: homeAddressInput.value,
         batteryKwh: batteryKwhInput.value,
         fuelLitresPer100Km: fuelLitresPer100KmInput.value,
         evKwhPer100Km: evKwhPer100KmInput.value
@@ -52,6 +55,7 @@ document.getElementById("test-btn").addEventListener("click", async () => {
     saveSkodaSettings({
         apiKey: apiKeyInput.value,
         vin: vinInput.value,
+        homeAddress: homeAddressInput.value,
         batteryKwh: batteryKwhInput.value,
         fuelLitresPer100Km: fuelLitresPer100KmInput.value,
         evKwhPer100Km: evKwhPer100KmInput.value
@@ -70,5 +74,6 @@ document.getElementById("clear-btn").addEventListener("click", () => {
     clearSkodaSettings();
     apiKeyInput.value = "";
     vinInput.value = "";
+    homeAddressInput.value = "";
     showStatus("A tárolt adatok törölve.", "ok");
 });
