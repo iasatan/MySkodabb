@@ -111,9 +111,9 @@ function getConsumption() {
 async function loadCarConsumption() {
     useCarConsumptionInput.disabled = true;
     consumptionHint.className = "hint";
-    consumptionHint.textContent = "Az autó adatainak lekérése…";
+    consumptionHint.textContent = "Az elcachelt autóadatok használata…";
     try {
-        const result = await fetchVehicle({ forceRefresh: true });
+        const result = await fetchVehicle({ cachedOnly: true });
         const vehicle = summarizeVehicle(result.data);
         if (vehicle.stateOfCharge === null || !vehicle.electricRangeKm || vehicle.electricRangeKm <= 0) {
             throw new Error("Az autó elektromos töltöttsége vagy hatótávja nem érhető el.");

@@ -157,7 +157,7 @@ async function requestVehicle({ apiKey, vin, baseUrl, keyInQuery }) {
     });
 }
 
-async function fetchVehicle({ forceRefresh = false } = {}) {
+async function fetchVehicle({ forceRefresh = false, cachedOnly = false } = {}) {
     const settings = loadSkodaSettings();
 
     if (!settings.apiKey || !settings.vin) {
@@ -172,6 +172,10 @@ async function fetchVehicle({ forceRefresh = false } = {}) {
         if (cached) {
             return { data: cached.data, fetchedAt: cached.fetchedAt, fromCache: true };
         }
+    }
+
+    if (cachedOnly) {
+        throw new Error("Nincs érvényes, elcachelt autóadat. Előbb kérj le friss adatot.");
     }
 
     const response = await requestVehicle(settings);
