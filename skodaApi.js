@@ -1,7 +1,7 @@
 const SKODA_STORAGE_KEY = "skoda-utility-settings";
 const SKODA_CACHE_KEY = "skoda-utility-vehicle-cache";
-// Óránként 20 kérés a limit, ezért 15 percnél fiatalabb adatot nem kérdezünk le újra.
-const SKODA_CACHE_TTL_MS = 15 * 60 * 1000;
+// Egy órán belül minden oldal és funkció ugyanazt a járműadat-cache-t használja.
+const SKODA_CACHE_TTL_MS = 60 * 60 * 1000;
 const SKODA_WORKER_BASE_URL = "https://skoda-api-proxy.satanadam.workers.dev";
 const DEFAULT_BATTERY_KWH = 25.7;
 const DEFAULT_FUEL_L_PER_100_KM = 6;
@@ -167,11 +167,9 @@ async function fetchVehicle({ forceRefresh = false, cachedOnly = false } = {}) {
         throw new Error("A VIN formátuma érvénytelen (17 karakter).");
     }
 
-    if (!forceRefresh) {
-        const cached = readCachedVehicle(settings.vin);
-        if (cached) {
-            return { data: cached.data, fetchedAt: cached.fetchedAt, fromCache: true };
-        }
+    const cached = readCachedVehicle(settings.vin);
+    if (cached) {
+        return { data: cached.data, fetchedAt: cached.fetchedAt, fromCache: true };
     }
 
     if (cachedOnly) {

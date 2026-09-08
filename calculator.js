@@ -66,14 +66,12 @@ setLimitBtn.addEventListener("click", async () => {
     }
 });
 
-const fetchBatteryBtn = document.getElementById("fetch-battery");
-const refreshBatteryBtn = document.getElementById("refresh-battery");
+const refreshDataBtn = document.getElementById("refresh-data");
 const batteryHint = document.getElementById("battery-hint");
 const time = new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" });
 
 async function loadBattery(forceRefresh) {
-    fetchBatteryBtn.disabled = true;
-    refreshBatteryBtn.disabled = true;
+    refreshDataBtn.disabled = true;
     batteryHint.className = "hint";
     batteryHint.textContent = "Lekérés folyamatban…";
     try {
@@ -86,13 +84,11 @@ async function loadBattery(forceRefresh) {
         batteryHint.className = "hint error";
         batteryHint.textContent = error.message;
     } finally {
-        fetchBatteryBtn.disabled = false;
-        refreshBatteryBtn.disabled = false;
+        refreshDataBtn.disabled = false;
     }
 }
 
-fetchBatteryBtn.addEventListener("click", () => loadBattery(false));
-refreshBatteryBtn.addEventListener("click", () => loadBattery(true));
+refreshDataBtn.addEventListener("click", () => loadBattery(true));
 window.addEventListener("DOMContentLoaded", () => loadBattery(false));
 
 let carConsumption = null;
@@ -176,7 +172,7 @@ async function fetchRouteDistance() {
         throw new Error("Előbb add meg az otthoni címet a Beállítások oldalon.");
     }
 
-    const vehicleResult = await fetchVehicle({ forceRefresh: true });
+    const vehicleResult = await fetchVehicle();
     const parkingPosition = summarizeVehicle(vehicleResult.data).parkingPosition;
     if (!parkingPosition) {
         throw new Error("Az autó aktuális parkolási helyzete nem érhető el.");
