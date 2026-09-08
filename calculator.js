@@ -276,6 +276,7 @@ function calculate({ fuelPrice, elecPrice, battery, distance, consumption }) {
         requiredSoc,
         currentElectricDistance,
         noChargeHybridDistance,
+        noChargeFuelLitres,
         noChargeFuelCost,
         chargeScenarioCost,
         fullChargeCost: fullChargeKwh * elecPrice,
@@ -326,7 +327,7 @@ function render(r) {
                 <tr><th>Hibrid szakasz töltés nélkül</th><td>${num.format(r.noChargeHybridDistance)} km</td></tr>
                 <tr><th>Hibrid szakasz egyszeri töltéssel</th><td>${num.format(r.deficitKm)} km</td></tr>
                 <tr><th>Ehhez szükséges töltés (hálózatból)</th><td>${num.format(r.gridKwh)} kWh &rarr; <strong>${huf.format(r.chargeCost)} Ft</strong></td></tr>
-                <tr><th>Ugyanez benzinnel</th><td>${num.format(r.fuelLitres)} l &rarr; <strong>${huf.format(r.fuelCost)} Ft</strong></td></tr>
+                <tr><th>Hibrid szakasz fogyasztása töltés nélkül</th><td>${num.format(r.noChargeFuelLitres)} l &rarr; <strong>${huf.format(r.noChargeFuelCost)} Ft</strong></td></tr>
                 <tr><th>Költség / km elektromosan</th><td>${num.format(r.evCostPerKm)} Ft/km</td></tr>
                 <tr><th>Költség / km hibridben</th><td>${num.format(r.fuelCostPerKm)} Ft/km</td></tr>
                 <tr><th>Számítási fogyasztás</th><td>${r.consumptionSource === "autó" ? "autó adatai" : "Beállítások"}</td></tr>
