@@ -213,6 +213,12 @@ function summarizeVehicle(data) {
             vehicle?.fuelStatus?.primaryEngineRange?.remainingRangeInKm,
             vehicle?.fuelStatus?.totalRangeInKm
         ),
+        fuelConsumptionLPer100Km: firstNumber(
+            vehicle?.fuelStatus?.primaryEngineRange?.averageFuelConsumptionInLitersPer100Km,
+            vehicle?.fuelStatus?.primaryEngineRange?.fuelConsumptionInLitersPer100Km,
+            vehicle?.fuelStatus?.averageFuelConsumptionInLitersPer100Km,
+            vehicle?.fuelStatus?.fuelConsumptionInLitersPer100Km
+        ),
         stateOfCharge: extractStateOfCharge(data),
         electricRangeKm: firstNumber(
             vehicle?.charging?.status?.battery?.remainingCruisingRangeInMeters / 1000,

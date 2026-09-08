@@ -5,6 +5,8 @@ const resultBox = document.getElementById("result");
 const distanceInput = document.getElementById("distance");
 const routeDistanceBtn = document.getElementById("route-distance");
 const routeHint = document.getElementById("route-hint");
+const useCarConsumptionInput = document.getElementById("use-car-consumption");
+const consumptionHint = document.getElementById("consumption-hint");
 
 const huf = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 0 });
 const num = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 1 });
@@ -28,7 +30,7 @@ form.addEventListener("submit", (event) => {
         return;
     }
 
-    render(calculate({ fuelPrice, elecPrice, battery, distance }));
+    render(calculate({ fuelPrice, elecPrice, battery, distance, consumption: getConsumption() }));
 });
 
 const targetSocInput = document.getElementById("targetSoc");
@@ -78,6 +80,74 @@ async function loadBattery(forceRefresh) {
 fetchBatteryBtn.addEventListener("click", () => loadBattery(false));
 refreshBatteryBtn.addEventListener("click", () => loadBattery(true));
 window.addEventListener("DOMContentLoaded", () => loadBattery(false));
+
+let carConsumption = null;
+
+function getConsumption() {
+    const settings = loadSkodaSettings();
+    return useCarConsumptionInput.checked && carConsumption
+        ? carConsumption
+        : {
+            fuelLitresPer100Km: settings.fuelLitresPer100Km,
+            evKwhPer100Km: settings.evKwhPer100Km,
+            source: "beállítások"
+        };
+}
+
+async function loadCarConsumption() {
+    useCarConsumptionInput.disabled = true;
+    consumptionHint.className = "hint";
+    consumptionHint.textContent = "Az autó adatainak lekérése…";
+    try {
+        const result = await fetchVehicle({ forceRefresh: true });
+        const vehicle = summarizeVehicle(result.data);
+        if (!vehicle.stateOfCharge || !vehicle.electricRangeKm || vehicle.electricRangeKm <= 0) {
+            throw new Error("Az autó elektromos töltöttsége vagy hatótávja nem érhető el.");
+        }
+
+        const settings = loadSkodaSettings();
+        const evKwhPer100Km = settings.batteryKwh * (vehicle.stateOfCharge / 100) /
+            vehicle.electricRangeKm * 100;
+        if (!vehicle.fuelConsumptionLPer100Km || vehicle.fuelConsumptionLPer100Km <= 0) {
+            throw new Error("Az autó benzines fogyasztása nem érhető el.");
+        }
+
+        document.getElementById("battery").value = Math.round(vehicle.stateOfCharge);
+        carConsumption = {
+            fuelLitresPer100Km: vehicle.fuelConsumptionLPer100Km,
+            evKwhPer100Km,
+            stateOfCharge: vehicle.stateOfCharge,
+            electricRangeKm: vehicle.electricRangeKm,
+            fuelLevelPercent: vehicle.fuelLevelPercent,
+            fuelRangeKm: vehicle.fuelRangeKm,
+            source: "autó"
+        };
+        consumptionHint.textContent =
+            `Autó: akkumulátor ${num.format(vehicle.stateOfCharge)}%, ` +
+            `elektromos hatótáv ${num.format(vehicle.electricRangeKm)} km, ` +
+            `fogyasztás ${num.format(evKwhPer100Km)} kWh/100 km; ` +
+            `üzemanyag ${vehicle.fuelLevelPercent === null ? "?" : num.format(vehicle.fuelLevelPercent)}%, ` +
+            `hatótáv ${vehicle.fuelRangeKm === null ? "?" : num.format(vehicle.fuelRangeKm)} km, ` +
+            `fogyasztás ${num.format(vehicle.fuelConsumptionLPer100Km)} l/100 km.`;
+    } catch (error) {
+        useCarConsumptionInput.checked = false;
+        carConsumption = null;
+        consumptionHint.className = "hint error";
+        consumptionHint.textContent = error.message;
+    } finally {
+        useCarConsumptionInput.disabled = false;
+    }
+}
+
+useCarConsumptionInput.addEventListener("change", () => {
+    if (useCarConsumptionInput.checked) {
+        loadCarConsumption();
+    } else {
+        carConsumption = null;
+        consumptionHint.className = "hint";
+        consumptionHint.textContent = "Kikapcsolva: a Beállításokban megadott fogyasztási értékek használata.";
+    }
+});
 
 async function fetchRouteDistance() {
     const { homeAddress } = loadSkodaSettings();
@@ -138,21 +208,22 @@ async function loadRouteDistance() {
 routeDistanceBtn.addEventListener("click", loadRouteDistance);
 window.addEventListener("DOMContentLoaded", loadRouteDistance);
 
-function calculate({ fuelPrice, elecPrice, battery, distance }) {
+function calculate({ fuelPrice, elecPrice, battery, distance, consumption }) {
     const settings = loadSkodaSettings();
     const batteryKwh = settings.batteryKwh;
-    const fuelLitresPerKm = settings.fuelLitresPer100Km / 100;
-    const evKwhPerKm = settings.evKwhPer100Km / 100;
+    const fuelLitresPerKm = consumption.fuelLitresPer100Km / 100;
+    const evKwhPerKm = consumption.evKwhPer100Km / 100;
     const stored = batteryKwh * (battery / 100);
     const evRange = stored / evKwhPerKm;
     const neededKwh = distance * evKwhPerKm;
-    const deficitKwh = Math.max(0, neededKwh - stored);
-    const deficitKm = deficitKwh / evKwhPerKm;
+    const chargeTargetKwh = Math.min(neededKwh, batteryKwh);
+    const chargeKwh = Math.max(0, chargeTargetKwh - stored);
+    const hybridDistance = Math.max(0, distance - batteryKwh / evKwhPerKm);
 
     // A töltéshez a hálózatból a veszteség miatt több energiát kell vennünk.
-    const gridKwh = deficitKwh / CHARGING_EFFICIENCY;
+    const gridKwh = chargeKwh / CHARGING_EFFICIENCY;
     const chargeCost = gridKwh * elecPrice;
-    const fuelLitres = deficitKm * fuelLitresPerKm;
+    const fuelLitres = hybridDistance * fuelLitresPerKm;
     const fuelCost = fuelLitres * fuelPrice;
 
     const evCostPerKm = (evKwhPerKm / CHARGING_EFFICIENCY) * elecPrice;
@@ -161,15 +232,15 @@ function calculate({ fuelPrice, elecPrice, battery, distance }) {
     const breakEvenFuelPrice = evCostPerKm / fuelLitresPerKm;
 
     const fullChargeKwh = (batteryKwh - stored) / CHARGING_EFFICIENCY;
-    const requiredSoc = Math.min(100, Math.ceil((neededKwh / batteryKwh) * 100));
+    const requiredSoc = Math.min(100, Math.ceil((chargeTargetKwh / batteryKwh) * 100));
 
     return {
         distance,
         stored,
         evRange,
         neededKwh,
-        deficitKwh,
-        deficitKm,
+        deficitKwh: chargeKwh,
+        deficitKm: hybridDistance,
         gridKwh,
         chargeCost,
         fuelLitres,
@@ -181,6 +252,13 @@ function calculate({ fuelPrice, elecPrice, battery, distance }) {
         fullChargeKwh,
         requiredSoc,
         fullChargeCost: fullChargeKwh * elecPrice,
+        fuelLitresPer100Km: consumption.fuelLitresPer100Km,
+        evKwhPer100Km: consumption.evKwhPer100Km,
+        stateOfCharge: consumption.stateOfCharge,
+        electricRangeKm: consumption.electricRangeKm,
+        fuelLevelPercent: consumption.fuelLevelPercent,
+        fuelRangeKm: consumption.fuelRangeKm,
+        consumptionSource: consumption.source,
         savings: fuelCost - chargeCost
     };
 }
@@ -188,6 +266,8 @@ function calculate({ fuelPrice, elecPrice, battery, distance }) {
 function render(r) {
     const chargeIsBetter = r.evCostPerKm < r.fuelCostPerKm;
     const enoughRange = r.deficitKwh === 0;
+    const fuelLevel = r.fuelLevelPercent === null ? "?" : num.format(r.fuelLevelPercent);
+    const fuelRange = r.fuelRangeKm === null ? "?" : num.format(r.fuelRangeKm);
 
     targetSocInput.value = r.requiredSoc;
     limitHint.className = "hint";
@@ -220,6 +300,13 @@ function render(r) {
                 <tr><th>Ugyanez benzinnel</th><td>${num.format(r.fuelLitres)} l &rarr; <strong>${huf.format(r.fuelCost)} Ft</strong></td></tr>
                 <tr><th>Költség / km elektromosan</th><td>${num.format(r.evCostPerKm)} Ft/km</td></tr>
                 <tr><th>Költség / km hibridben</th><td>${num.format(r.fuelCostPerKm)} Ft/km</td></tr>
+                <tr><th>Számítási fogyasztás</th><td>${r.consumptionSource === "autó" ? "autó adatai" : "Beállítások"}</td></tr>
+                <tr><th>Elektromos fogyasztás</th><td>${num.format(r.evKwhPer100Km)} kWh/100 km</td></tr>
+                <tr><th>Hibrid fogyasztás</th><td>${num.format(r.fuelLitresPer100Km)} l/100 km</td></tr>
+                ${r.consumptionSource === "autó" ? `
+                    <tr><th>Akkumulátor</th><td>${num.format(r.stateOfCharge)}% | ${num.format(r.electricRangeKm)} km maradék út</td></tr>
+                    <tr><th>Üzemanyag</th><td>${fuelLevel}% | ${fuelRange} km maradék út</td></tr>
+                ` : ""}
                 <tr><th>Teljes feltöltés ára (100%-ig)</th><td>${num.format(r.fullChargeKwh)} kWh &rarr; ${huf.format(r.fullChargeCost)} Ft</td></tr>
             </tbody>
         </table>
