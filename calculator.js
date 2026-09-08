@@ -11,19 +11,24 @@ const consumptionHint = document.getElementById("consumption-hint");
 const huf = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 0 });
 const num = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 1 });
 
-form.addEventListener("submit", (event) => {
-    event.preventDefault();
-
+function readCalculationInputs() {
     const fuelPrice = Number(document.getElementById("fuelPrice").value);
     const elecPrice = Number(document.getElementById("elecPrice").value);
     const battery = Number(document.getElementById("battery").value);
     const distance = Number(distanceInput.value);
+    return { fuelPrice, elecPrice, battery, distance };
+}
 
+function runCalculation(showError = true) {
+    const { fuelPrice, elecPrice, battery, distance } = readCalculationInputs();
     const valid =
         [fuelPrice, elecPrice, battery, distance].every((v) => Number.isFinite(v) && v >= 0) &&
         battery <= 100;
 
     if (!valid) {
+        if (!showError) {
+            return;
+        }
         resultBox.hidden = false;
         resultBox.className = "result";
         resultBox.innerHTML = '<p class="error">Kérlek adj meg érvényes értékeket (a töltöttség 0 és 100% között).</p>';
@@ -31,6 +36,15 @@ form.addEventListener("submit", (event) => {
     }
 
     render(calculate({ fuelPrice, elecPrice, battery, distance, consumption: getConsumption() }));
+}
+
+form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    runCalculation();
+});
+
+form.querySelectorAll("input").forEach((input) => {
+    input.addEventListener("input", () => runCalculation(false));
 });
 
 const targetSocInput = document.getElementById("targetSoc");
@@ -259,6 +273,7 @@ function calculate({ fuelPrice, elecPrice, battery, distance, consumption }) {
         fullChargeKwh,
         requiredSoc,
         fullChargeCost: fullChargeKwh * elecPrice,
+        batteryPercent: battery,
         fuelLitresPer100Km: consumption.fuelLitresPer100Km,
         evKwhPer100Km: consumption.evKwhPer100Km,
         stateOfCharge: consumption.stateOfCharge,
@@ -311,7 +326,8 @@ function render(r) {
                 <tr><th>Elektromos fogyasztás</th><td>${num.format(r.evKwhPer100Km)} kWh/100 km</td></tr>
                 <tr><th>Hibrid fogyasztás</th><td>${num.format(r.fuelLitresPer100Km)} l/100 km</td></tr>
                 ${r.consumptionSource === "autó" ? `
-                    <tr><th>Akkumulátor</th><td>${num.format(r.stateOfCharge)}% | ${num.format(r.electricRangeKm)} km maradék út</td></tr>
+                    <tr><th>Akkumulátor a számításhoz</th><td>${num.format(r.batteryPercent)}%</td></tr>
+                    <tr><th>Autó aktuális akkumulátora</th><td>${num.format(r.stateOfCharge)}% | ${num.format(r.electricRangeKm)} km maradék út</td></tr>
                     <tr><th>Üzemanyag</th><td>${fuelLevel}% | ${fuelRange} km maradék út</td></tr>
                 ` : ""}
                 <tr><th>Teljes feltöltés ára (100%-ig)</th><td>${num.format(r.fullChargeKwh)} kWh &rarr; ${huf.format(r.fullChargeCost)} Ft</td></tr>
