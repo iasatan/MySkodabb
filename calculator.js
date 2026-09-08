@@ -108,13 +108,17 @@ async function loadCarConsumption() {
         const settings = loadSkodaSettings();
         const evKwhPer100Km = settings.batteryKwh * (vehicle.stateOfCharge / 100) /
             vehicle.electricRangeKm * 100;
-        if (!vehicle.fuelConsumptionLPer100Km || vehicle.fuelConsumptionLPer100Km <= 0) {
-            throw new Error("Az autó benzines fogyasztása nem érhető el.");
+        const fuelRangeAvailable = vehicle.fuelRangeKm !== null && vehicle.fuelRangeKm > 0;
+        const fuelLevelAvailable = vehicle.fuelLevelPercent !== null && vehicle.fuelLevelPercent >= 0;
+        if (!fuelRangeAvailable || !fuelLevelAvailable) {
+            throw new Error("Az autó benzinszintje vagy benzines hatótávja nem érhető el.");
         }
+        const fuelLitresPer100Km = settings.fuelTankLitres * (vehicle.fuelLevelPercent / 100) /
+            vehicle.fuelRangeKm * 100;
 
         document.getElementById("battery").value = Math.round(vehicle.stateOfCharge);
         carConsumption = {
-            fuelLitresPer100Km: vehicle.fuelConsumptionLPer100Km,
+            fuelLitresPer100Km,
             evKwhPer100Km,
             stateOfCharge: vehicle.stateOfCharge,
             electricRangeKm: vehicle.electricRangeKm,
@@ -128,7 +132,7 @@ async function loadCarConsumption() {
             `fogyasztás ${num.format(evKwhPer100Km)} kWh/100 km; ` +
             `üzemanyag ${vehicle.fuelLevelPercent === null ? "?" : num.format(vehicle.fuelLevelPercent)}%, ` +
             `hatótáv ${vehicle.fuelRangeKm === null ? "?" : num.format(vehicle.fuelRangeKm)} km, ` +
-            `fogyasztás ${num.format(vehicle.fuelConsumptionLPer100Km)} l/100 km.`;
+            `fogyasztás ${num.format(fuelLitresPer100Km)} l/100 km.`;
     } catch (error) {
         useCarConsumptionInput.checked = false;
         carConsumption = null;

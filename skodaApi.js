@@ -5,6 +5,7 @@ const SKODA_CACHE_TTL_MS = 15 * 60 * 1000;
 const SKODA_WORKER_BASE_URL = "https://skoda-api-proxy.satanadam.workers.dev";
 const DEFAULT_BATTERY_KWH = 25.7;
 const DEFAULT_FUEL_L_PER_100_KM = 6;
+const DEFAULT_FUEL_TANK_LITRES = 45;
 const DEFAULT_EV_KWH_PER_100_KM = 18;
 
 function positiveNumberOrDefault(value, defaultValue) {
@@ -24,6 +25,7 @@ function loadSkodaSettings() {
             keyInQuery: true,
             batteryKwh: positiveNumberOrDefault(parsed.batteryKwh, DEFAULT_BATTERY_KWH),
             fuelLitresPer100Km: positiveNumberOrDefault(parsed.fuelLitresPer100Km, DEFAULT_FUEL_L_PER_100_KM),
+            fuelTankLitres: positiveNumberOrDefault(parsed.fuelTankLitres, DEFAULT_FUEL_TANK_LITRES),
             evKwhPer100Km: positiveNumberOrDefault(parsed.evKwhPer100Km, DEFAULT_EV_KWH_PER_100_KM)
         };
     } catch {
@@ -35,6 +37,7 @@ function loadSkodaSettings() {
             keyInQuery: true,
             batteryKwh: DEFAULT_BATTERY_KWH,
             fuelLitresPer100Km: DEFAULT_FUEL_L_PER_100_KM,
+            fuelTankLitres: DEFAULT_FUEL_TANK_LITRES,
             evKwhPer100Km: DEFAULT_EV_KWH_PER_100_KM
         };
     }
@@ -48,7 +51,7 @@ function trimTrailingSlashes(value) {
     return value.slice(0, end);
 }
 
-function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer100Km, evKwhPer100Km }) {
+function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer100Km, fuelTankLitres, evKwhPer100Km }) {
     localStorage.setItem(
         SKODA_STORAGE_KEY,
         JSON.stringify({
@@ -59,6 +62,7 @@ function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer
             keyInQuery: true,
             batteryKwh: positiveNumberOrDefault(batteryKwh, DEFAULT_BATTERY_KWH),
             fuelLitresPer100Km: positiveNumberOrDefault(fuelLitresPer100Km, DEFAULT_FUEL_L_PER_100_KM),
+            fuelTankLitres: positiveNumberOrDefault(fuelTankLitres, DEFAULT_FUEL_TANK_LITRES),
             evKwhPer100Km: positiveNumberOrDefault(evKwhPer100Km, DEFAULT_EV_KWH_PER_100_KM)
         })
     );
@@ -212,12 +216,6 @@ function summarizeVehicle(data) {
         fuelRangeKm: firstNumber(
             vehicle?.fuelStatus?.primaryEngineRange?.remainingRangeInKm,
             vehicle?.fuelStatus?.totalRangeInKm
-        ),
-        fuelConsumptionLPer100Km: firstNumber(
-            vehicle?.fuelStatus?.primaryEngineRange?.averageFuelConsumptionInLitersPer100Km,
-            vehicle?.fuelStatus?.primaryEngineRange?.fuelConsumptionInLitersPer100Km,
-            vehicle?.fuelStatus?.averageFuelConsumptionInLitersPer100Km,
-            vehicle?.fuelStatus?.fuelConsumptionInLitersPer100Km
         ),
         stateOfCharge: extractStateOfCharge(data),
         electricRangeKm: firstNumber(
