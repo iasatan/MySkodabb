@@ -79,25 +79,18 @@ fetchBatteryBtn.addEventListener("click", () => loadBattery(false));
 refreshBatteryBtn.addEventListener("click", () => loadBattery(true));
 window.addEventListener("DOMContentLoaded", () => loadBattery(false));
 
-function getCurrentPosition() {
-    return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) {
-            reject(new Error("A böngésző nem támogatja a helymeghatározást."));
-            return;
-        }
-        navigator.geolocation.getCurrentPosition(resolve, () => {
-            reject(new Error("Nem sikerült lekérni a jelenlegi GPS-pozíciót."));
-        }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
-    });
-}
-
 async function fetchRouteDistance() {
     const { homeAddress } = loadSkodaSettings();
     if (!homeAddress) {
         throw new Error("Előbb add meg az otthoni címet a Beállítások oldalon.");
     }
 
-    const position = await getCurrentPosition();
+    const vehicleResult = await fetchVehicle({ forceRefresh: true });
+    const parkingPosition = summarizeVehicle(vehicleResult.data).parkingPosition;
+    if (!parkingPosition) {
+        throw new Error("Az autó aktuális parkolási helyzete nem érhető el.");
+    }
+
     const geocodeUrl = new URL("https://nominatim.openstreetmap.org/search");
     geocodeUrl.searchParams.set("q", homeAddress);
     geocodeUrl.searchParams.set("format", "jsonv2");
@@ -111,7 +104,7 @@ async function fetchRouteDistance() {
         throw new Error("A megadott otthoni cím nem található.");
     }
 
-    const routeUrl = `https://router.project-osrm.org/route/v1/driving/${position.coords.longitude},${position.coords.latitude};${locations[0].lon},${locations[0].lat}`;
+    const routeUrl = `https://router.project-osrm.org/route/v1/driving/${parkingPosition.longitude},${parkingPosition.latitude};${locations[0].lon},${locations[0].lat}`;
     const routeResponse = await fetch(`${routeUrl}?overview=false`);
     if (!routeResponse.ok) {
         throw new Error("Az útvonal lekérése sikertelen.");
@@ -126,7 +119,7 @@ async function fetchRouteDistance() {
 async function loadRouteDistance() {
     routeDistanceBtn.disabled = true;
     routeHint.className = "hint";
-    routeHint.textContent = "GPS-pozíció és útvonal lekérése…";
+    routeHint.textContent = "Az autó helyzete és az útvonal lekérése…";
     try {
         const distance = await fetchRouteDistance();
         distanceInput.value = distance.toFixed(1);
