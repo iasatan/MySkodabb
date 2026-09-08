@@ -233,15 +233,21 @@ function calculate({ fuelPrice, elecPrice, battery, distance, consumption }) {
     const stored = batteryKwh * (battery / 100);
     const evRange = stored / evKwhPerKm;
     const neededKwh = distance * evKwhPerKm;
+    const currentElectricDistance = Math.min(distance, evRange);
+    const noChargeHybridDistance = Math.max(0, distance - currentElectricDistance);
     const chargeTargetKwh = Math.min(neededKwh, batteryKwh);
     const chargeKwh = Math.max(0, chargeTargetKwh - stored);
-    const hybridDistance = Math.max(0, distance - batteryKwh / evKwhPerKm);
+    const chargedElectricDistance = Math.min(distance, batteryKwh / evKwhPerKm);
+    const hybridDistance = Math.max(0, distance - chargedElectricDistance);
 
     // A töltéshez a hálózatból a veszteség miatt több energiát kell vennünk.
     const gridKwh = chargeKwh / CHARGING_EFFICIENCY;
     const chargeCost = gridKwh * elecPrice;
     const fuelLitres = hybridDistance * fuelLitresPerKm;
     const fuelCost = fuelLitres * fuelPrice;
+    const noChargeFuelLitres = noChargeHybridDistance * fuelLitresPerKm;
+    const noChargeFuelCost = noChargeFuelLitres * fuelPrice;
+    const chargeScenarioCost = chargeCost + fuelCost;
 
     const evCostPerKm = (evKwhPerKm / CHARGING_EFFICIENCY) * elecPrice;
     const fuelCostPerKm = fuelLitresPerKm * fuelPrice;
@@ -268,6 +274,10 @@ function calculate({ fuelPrice, elecPrice, battery, distance, consumption }) {
         breakEvenFuelPrice,
         fullChargeKwh,
         requiredSoc,
+        currentElectricDistance,
+        noChargeHybridDistance,
+        noChargeFuelCost,
+        chargeScenarioCost,
         fullChargeCost: fullChargeKwh * elecPrice,
         batteryPercent: battery,
         fuelLitresPer100Km: consumption.fuelLitresPer100Km,
@@ -277,30 +287,30 @@ function calculate({ fuelPrice, elecPrice, battery, distance, consumption }) {
         fuelLevelPercent: consumption.fuelLevelPercent,
         fuelRangeKm: consumption.fuelRangeKm,
         consumptionSource: consumption.source,
-        savings: fuelCost - chargeCost
+        savings: noChargeFuelCost - chargeScenarioCost
     };
 }
 
 function render(r) {
-    const chargeIsBetter = r.evCostPerKm < r.fuelCostPerKm;
-    const enoughRange = r.deficitKwh === 0;
+    const enoughRange = r.noChargeHybridDistance === 0;
+    const chargeIsBetter = r.deficitKwh > 0 && r.savings > 0;
     const fuelLevel = r.fuelLevelPercent === null ? "?" : num.format(r.fuelLevelPercent);
     const fuelRange = r.fuelRangeKm === null ? "?" : num.format(r.fuelRangeKm);
 
     targetSocInput.value = r.requiredSoc;
     limitHint.className = "hint";
-    limitHint.textContent = `${num.format(r.distance)} km-hez ${r.requiredSoc}% kell – átírható, majd átküldhető az autóba.`;
+    limitHint.textContent = `${num.format(r.distance)} km teljesítéséhez ${r.requiredSoc}% töltöttség szükséges – átírható.`;
 
     let verdict;
     let mode;
     if (enoughRange) {
-        verdict = "Nem kell tölteni: a jelenlegi töltöttség elég erre az útra.";
+        verdict = "Ne tölts: a jelenlegi töltöttség elég az egész útra.";
         mode = "charge";
     } else if (chargeIsBetter) {
-        verdict = `Töltsd fel! Így ${huf.format(r.savings)} Ft-ot spórolsz ezen az úton.`;
+        verdict = `Tölts indulás előtt! Így ${huf.format(r.savings)} Ft-tal olcsóbb, mint töltés nélkül.`;
         mode = "charge";
     } else {
-        verdict = `Menj hibridben! A töltés ${huf.format(-r.savings)} Ft-tal drágább lenne.`;
+        verdict = `Ne tölts indulás előtt: a töltés ${huf.format(Math.abs(r.savings))} Ft-tal drágább lenne.`;
         mode = "fuel";
     }
 
@@ -312,8 +322,9 @@ function render(r) {
             <tbody>
                 <tr><th>Elektromos hatótáv most</th><td>${num.format(r.evRange)} km (${num.format(r.stored)} kWh)</td></tr>
                 <tr><th>Út hossza</th><td>${num.format(r.distance)} km</td></tr>
-                <tr><th>Ehhez szükséges töltöttség</th><td>${r.requiredSoc}%</td></tr>
-                <tr><th>Árammal nem fedezett szakasz</th><td>${num.format(r.deficitKm)} km</td></tr>
+                <tr><th>Úthoz szükséges töltöttség</th><td>${r.requiredSoc}%</td></tr>
+                <tr><th>Hibrid szakasz töltés nélkül</th><td>${num.format(r.noChargeHybridDistance)} km</td></tr>
+                <tr><th>Hibrid szakasz egyszeri töltéssel</th><td>${num.format(r.deficitKm)} km</td></tr>
                 <tr><th>Ehhez szükséges töltés (hálózatból)</th><td>${num.format(r.gridKwh)} kWh &rarr; <strong>${huf.format(r.chargeCost)} Ft</strong></td></tr>
                 <tr><th>Ugyanez benzinnel</th><td>${num.format(r.fuelLitres)} l &rarr; <strong>${huf.format(r.fuelCost)} Ft</strong></td></tr>
                 <tr><th>Költség / km elektromosan</th><td>${num.format(r.evCostPerKm)} Ft/km</td></tr>
