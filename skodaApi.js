@@ -211,6 +211,7 @@ function summarizeVehicle(data) {
         odometerKm: firstNumber(vehicle?.odometer?.odometerInKm, vehicle?.odometer?.mileageInKm),
         fuelLevelPercent: firstNumber(
             vehicle?.fuelStatus?.primaryEngineRange?.currentFuelLevelInPercent,
+            vehicle?.fuelStatus?.primaryEngineRange?.currentSoCInPercent,
             vehicle?.fuelStatus?.currentFuelLevelInPercent
         ),
         fuelRangeKm: firstNumber(

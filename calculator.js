@@ -101,11 +101,14 @@ async function loadCarConsumption() {
     try {
         const result = await fetchVehicle({ forceRefresh: true });
         const vehicle = summarizeVehicle(result.data);
-        if (!vehicle.stateOfCharge || !vehicle.electricRangeKm || vehicle.electricRangeKm <= 0) {
+        if (vehicle.stateOfCharge === null || !vehicle.electricRangeKm || vehicle.electricRangeKm <= 0) {
             throw new Error("Az autó elektromos töltöttsége vagy hatótávja nem érhető el.");
         }
 
         const settings = loadSkodaSettings();
+        if (!settings.fuelTankLitres || settings.fuelTankLitres <= 0) {
+            throw new Error("A Beállításokban add meg a benzintartály kapacitását literben.");
+        }
         const evKwhPer100Km = settings.batteryKwh * (vehicle.stateOfCharge / 100) /
             vehicle.electricRangeKm * 100;
         const fuelRangeAvailable = vehicle.fuelRangeKm !== null && vehicle.fuelRangeKm > 0;
