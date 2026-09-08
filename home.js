@@ -32,10 +32,12 @@ function addCard(title, value) {
 }
 
 function renderMap({ latitude, longitude }) {
-    const delta = 0.003;
-    const bbox = [longitude - delta, latitude - delta, longitude + delta, latitude + delta].join("%2C");
-    mapFrame.src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${latitude}%2C${longitude}`;
-    mapLink.href = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=17/${latitude}/${longitude}`;
+    const appleMapsUrl = new URL("https://maps.apple.com/");
+    appleMapsUrl.searchParams.set("ll", `${latitude},${longitude}`);
+    appleMapsUrl.searchParams.set("q", "Parkolási pozíció");
+    appleMapsUrl.searchParams.set("z", "17");
+    mapFrame.src = appleMapsUrl.href;
+    mapLink.href = appleMapsUrl.href;
     mapPanel.hidden = false;
 }
 
