@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>MySkodabb</title>
 <link rel="stylesheet" href="styles.css" />
+<link rel="icon" type="image/x-icon" href="favicon.ico"
 </head>
 <body>
 <header class="topbar">
@@ -46,18 +47,18 @@
     </div>
 </section>
 
-<section class="cards specs">
+<section class="cards specs" id="specs-cards">
     <article class="card">
-        <h2>25,7 kWh</h2>
+        <h2 id="spec-battery">25,7 kWh</h2>
         <p>Akkumulátor kapacitás</p>
     </article>
     <article class="card">
-        <h2>6 l/100 km</h2>
-        <p>Fogyasztás hibrid módban</p>
+        <h2 id="spec-fuel">6 l/100 km</h2>
+        <p>Fogyasztás hibrid módban <span class="spec-source" id="spec-fuel-source"></span></p>
     </article>
     <article class="card">
-        <h2>18 kWh/100 km</h2>
-        <p>Fogyasztás elektromos módban</p>
+        <h2 id="spec-ev">18 kWh/100 km</h2>
+        <p>Fogyasztás elektromos módban <span class="spec-source" id="spec-ev-source"></span></p>
     </article>
 </section>
 </main>

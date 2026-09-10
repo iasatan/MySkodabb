@@ -259,6 +259,12 @@ h1 {
     font-size: .9rem;
 }
 
+.spec-source {
+    font-size: .78rem;
+    color: var(--muted);
+    opacity: .75;
+}
+
 .page {
     max-width: 780px;
     margin: 0 auto;
