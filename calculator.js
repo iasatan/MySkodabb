@@ -8,8 +8,22 @@ const routeHint = document.getElementById("route-hint");
 const useCarConsumptionInput = document.getElementById("use-car-consumption");
 const consumptionHint = document.getElementById("consumption-hint");
 
-const huf = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 0 });
-const num = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 1 });
+function num(value) {
+    return new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 1 }).format(value);
+}
+
+function initLocalizedLabels() {
+    document.getElementById("fuelPrice-label").textContent = t("label_fuelPrice", { unit: getCurrencyUnit("fuel") });
+    document.getElementById("elecPrice-label").textContent = t("label_elecPrice", { unit: getCurrencyUnit("elec") });
+    const settings = loadSkodaSettings();
+    document.getElementById("assumptions-list").innerHTML = `
+        <li>${t("assumption_battery", { value: num(settings.batteryKwh) })}</li>
+        <li>${t("assumption_hybrid", { value: num(settings.fuelLitresPer100Km) })}</li>
+        <li>${t("assumption_ev", { value: num(settings.evKwhPer100Km) })}</li>
+        <li>${t("assumption_loss")}</li>
+    `;
+}
+document.addEventListener("DOMContentLoaded", initLocalizedLabels);
 
 function readCalculationInputs() {
     const fuelPrice = Number(document.getElementById("fuelPrice").value);
@@ -31,7 +45,7 @@ function runCalculation(showError = true) {
         }
         resultBox.hidden = false;
         resultBox.className = "result";
-        resultBox.innerHTML = '<p class="error">Kérlek adj meg érvényes értékeket (a töltöttség 0 és 100% között).</p>';
+        resultBox.innerHTML = `<p class="error">${t("error_invalid_inputs")}</p>`;
         return;
     }
 
@@ -54,10 +68,10 @@ const limitHint = document.getElementById("limit-hint");
 setLimitBtn.addEventListener("click", async () => {
     setLimitBtn.disabled = true;
     limitHint.className = "hint";
-    limitHint.textContent = "Beállítás folyamatban…";
+    limitHint.textContent = t("limit_setting");
     try {
         const target = await setChargingLimit(Number(targetSocInput.value));
-        limitHint.textContent = `A töltési limit ${target}%-ra állítva.`;
+        limitHint.textContent = t("limit_set_done", { target });
     } catch (error) {
         limitHint.className = "hint error";
         limitHint.textContent = error.message;
@@ -68,18 +82,18 @@ setLimitBtn.addEventListener("click", async () => {
 
 const refreshDataBtn = document.getElementById("refresh-data");
 const batteryHint = document.getElementById("battery-hint");
-const time = new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" });
 
 async function loadBattery(forceRefresh) {
     refreshDataBtn.disabled = true;
     batteryHint.className = "hint";
-    batteryHint.textContent = "Lekérés folyamatban…";
+    batteryHint.textContent = t("data_fetching");
     try {
         const { stateOfCharge, fetchedAt, fromCache, remainingRequests } = await fetchBatteryPercentage({ forceRefresh });
         document.getElementById("battery").value = Math.round(stateOfCharge);
-        const source = fromCache ? "gyorsítótárból" : "friss";
-        const quota = remainingRequests ? `, még ${remainingRequests} lekérés ebben az órában` : "";
-        batteryHint.textContent = `Töltöttség: ${stateOfCharge}% (${source}, ${time.format(fetchedAt)}${quota})`;
+        const source = fromCache ? t("source_cache") : t("source_fresh");
+        const quota = remainingRequests ? t("quota_remaining", { count: remainingRequests }) : "";
+        const time = new Intl.DateTimeFormat(getLocale(), { hour: "2-digit", minute: "2-digit" });
+        batteryHint.textContent = t("battery_hint", { soc: stateOfCharge, source, time: time.format(fetchedAt), quota });
     } catch (error) {
         batteryHint.className = "hint error";
         batteryHint.textContent = error.message;
@@ -100,31 +114,31 @@ function getConsumption() {
         : {
             fuelLitresPer100Km: settings.fuelLitresPer100Km,
             evKwhPer100Km: settings.evKwhPer100Km,
-            source: "beállítások"
+            source: "settings"
         };
 }
 
 async function loadCarConsumption() {
     useCarConsumptionInput.disabled = true;
     consumptionHint.className = "hint";
-    consumptionHint.textContent = "Az elcachelt autóadatok használata…";
+    consumptionHint.textContent = t("consumption_using_cache");
     try {
         const result = await fetchVehicle({ cachedOnly: true });
         const vehicle = summarizeVehicle(result.data);
         if (vehicle.stateOfCharge === null || !vehicle.electricRangeKm || vehicle.electricRangeKm <= 0) {
-            throw new Error("Az autó elektromos töltöttsége vagy hatótávja nem érhető el.");
+            throw new Error(t("consumption_missing_ev"));
         }
 
         const settings = loadSkodaSettings();
         if (!settings.fuelTankLitres || settings.fuelTankLitres <= 0) {
-            throw new Error("A Beállításokban add meg a benzintartály kapacitását literben.");
+            throw new Error(t("consumption_missing_tank"));
         }
         const evKwhPer100Km = settings.batteryKwh * (vehicle.stateOfCharge / 100) /
             vehicle.electricRangeKm * 100;
         const fuelRangeAvailable = vehicle.fuelRangeKm !== null && vehicle.fuelRangeKm > 0;
         const fuelLevelAvailable = vehicle.fuelLevelPercent !== null && vehicle.fuelLevelPercent >= 0;
         if (!fuelRangeAvailable || !fuelLevelAvailable) {
-            throw new Error("Az autó benzinszintje vagy benzines hatótávja nem érhető el.");
+            throw new Error(t("consumption_missing_fuel"));
         }
         const fuelLitresPer100Km = settings.fuelTankLitres * (vehicle.fuelLevelPercent / 100) /
             vehicle.fuelRangeKm * 100;
@@ -137,15 +151,16 @@ async function loadCarConsumption() {
             electricRangeKm: vehicle.electricRangeKm,
             fuelLevelPercent: vehicle.fuelLevelPercent,
             fuelRangeKm: vehicle.fuelRangeKm,
-            source: "autó"
+            source: "car"
         };
-        consumptionHint.textContent =
-            `Autó: akkumulátor ${num.format(vehicle.stateOfCharge)}%, ` +
-            `elektromos hatótáv ${num.format(vehicle.electricRangeKm)} km, ` +
-            `fogyasztás ${num.format(evKwhPer100Km)} kWh/100 km; ` +
-            `üzemanyag ${vehicle.fuelLevelPercent === null ? "?" : num.format(vehicle.fuelLevelPercent)}%, ` +
-            `hatótáv ${vehicle.fuelRangeKm === null ? "?" : num.format(vehicle.fuelRangeKm)} km, ` +
-            `fogyasztás ${num.format(fuelLitresPer100Km)} l/100 km.`;
+        consumptionHint.textContent = t("consumption_summary", {
+            soc: num(vehicle.stateOfCharge),
+            evRange: num(vehicle.electricRangeKm),
+            evConsumption: num(evKwhPer100Km),
+            fuelLevel: vehicle.fuelLevelPercent === null ? "?" : num(vehicle.fuelLevelPercent),
+            fuelRange: vehicle.fuelRangeKm === null ? "?" : num(vehicle.fuelRangeKm),
+            fuelConsumption: num(fuelLitresPer100Km)
+        });
     } catch (error) {
         useCarConsumptionInput.checked = false;
         carConsumption = null;
@@ -162,20 +177,20 @@ useCarConsumptionInput.addEventListener("change", () => {
     } else {
         carConsumption = null;
         consumptionHint.className = "hint";
-        consumptionHint.textContent = "Kikapcsolva: a Beállításokban megadott fogyasztási értékek használata.";
+        consumptionHint.textContent = t("consumption_hint_off");
     }
 });
 
 async function fetchRouteDistance() {
     const { homeAddress } = loadSkodaSettings();
     if (!homeAddress) {
-        throw new Error("Előbb add meg az otthoni címet a Beállítások oldalon.");
+        throw new Error(t("home_address_missing"));
     }
 
     const vehicleResult = await fetchVehicle();
     const parkingPosition = summarizeVehicle(vehicleResult.data).parkingPosition;
     if (!parkingPosition) {
-        throw new Error("Az autó aktuális parkolási helyzete nem érhető el.");
+        throw new Error(t("parking_position_missing"));
     }
 
     const geocodeUrl = new URL("https://nominatim.openstreetmap.org/search");
@@ -184,21 +199,21 @@ async function fetchRouteDistance() {
     geocodeUrl.searchParams.set("limit", "1");
     const geocodeResponse = await fetch(geocodeUrl);
     if (!geocodeResponse.ok) {
-        throw new Error("A cím koordinátáinak lekérése sikertelen.");
+        throw new Error(t("geocode_failed"));
     }
     const locations = await geocodeResponse.json();
     if (!locations.length) {
-        throw new Error("A megadott otthoni cím nem található.");
+        throw new Error(t("home_address_not_found"));
     }
 
     const routeUrl = `https://router.project-osrm.org/route/v1/driving/${parkingPosition.longitude},${parkingPosition.latitude};${locations[0].lon},${locations[0].lat}`;
     const routeResponse = await fetch(`${routeUrl}?overview=false&alternatives=true`);
     if (!routeResponse.ok) {
-        throw new Error("Az útvonal lekérése sikertelen.");
+        throw new Error(t("route_failed"));
     }
     const route = await routeResponse.json();
     if (route.code !== "Ok" || !route.routes?.length) {
-        throw new Error("Nem található autós útvonal a jelenlegi hely és az otthon között.");
+        throw new Error(t("route_not_found"));
     }
     const shortestRoute = route.routes.reduce((shortest, current) =>
         current.distance < shortest.distance ? current : shortest
@@ -209,11 +224,11 @@ async function fetchRouteDistance() {
 async function loadRouteDistance() {
     routeDistanceBtn.disabled = true;
     routeHint.className = "hint";
-    routeHint.textContent = "Az autó helyzete és az útvonal lekérése…";
+    routeHint.textContent = t("route_fetching");
     try {
         const distance = await fetchRouteDistance();
         distanceInput.value = distance.toFixed(1);
-        routeHint.textContent = `Útvonal távolsága: ${num.format(distance)} km.`;
+        routeHint.textContent = t("route_hint", { distance: num(distance) });
     } catch (error) {
         routeHint.className = "hint error";
         routeHint.textContent = error.message;
@@ -295,25 +310,28 @@ function calculate({ fuelPrice, elecPrice, battery, distance, consumption }) {
 function render(r) {
     const enoughRange = r.noChargeHybridDistance === 0;
     const chargeIsBetter = r.deficitKwh > 0 && r.savings > 0;
-    const fuelLevel = r.fuelLevelPercent === null ? "?" : num.format(r.fuelLevelPercent);
-    const fuelRange = r.fuelRangeKm === null ? "?" : num.format(r.fuelRangeKm);
+    const fuelLevel = r.fuelLevelPercent === null ? "?" : num(r.fuelLevelPercent);
+    const fuelRange = r.fuelRangeKm === null ? "?" : num(r.fuelRangeKm);
+    const symbol = currencySymbol();
 
     targetSocInput.value = r.requiredSoc;
     limitHint.className = "hint";
-    limitHint.textContent = `${num.format(r.distance)} km teljesítéséhez ${r.requiredSoc}% töltöttség szükséges – átírható.`;
+    limitHint.textContent = t("limit_hint_calculated", { distance: num(r.distance), soc: r.requiredSoc });
 
     let verdict;
     let mode;
     if (enoughRange) {
-        verdict = "Ne tölts: a jelenlegi töltöttség elég az egész útra.";
+        verdict = t("verdict_no_charge_enough");
         mode = "charge";
     } else if (chargeIsBetter) {
-        verdict = `Tölts indulás előtt! Így ${huf.format(r.savings)} Ft-tal olcsóbb, mint töltés nélkül.`;
+        verdict = t("verdict_charge_better", { savings: formatCurrency(r.savings) });
         mode = "charge";
     } else {
-        verdict = `Ne tölts indulás előtt: a töltés ${huf.format(Math.abs(r.savings))} Ft-tal drágább lenne.`;
+        verdict = t("verdict_fuel_better", { savings: formatCurrency(Math.abs(r.savings)) });
         mode = "fuel";
     }
+
+    const consumptionSourceLabel = r.consumptionSource === "car" ? t("consumption_source_car") : t("consumption_source_settings");
 
     resultBox.hidden = false;
     resultBox.className = `result ${mode}`;
@@ -321,29 +339,31 @@ function render(r) {
         <p class="verdict">${verdict}</p>
         <table>
             <tbody>
-                <tr><th>Elektromos hatótáv most</th><td>${num.format(r.evRange)} km (${num.format(r.stored)} kWh)</td></tr>
-                <tr><th>Út hossza</th><td>${num.format(r.distance)} km</td></tr>
-                <tr><th>Úthoz szükséges töltöttség</th><td>${r.requiredSoc}%</td></tr>
-                <tr><th>Hibrid szakasz töltés nélkül</th><td>${num.format(r.noChargeHybridDistance)} km</td></tr>
-                <tr><th>Hibrid szakasz egyszeri töltéssel</th><td>${num.format(r.deficitKm)} km</td></tr>
-                <tr><th>Ehhez szükséges töltés (hálózatból)</th><td>${num.format(r.gridKwh)} kWh &rarr; <strong>${huf.format(r.chargeCost)} Ft</strong></td></tr>
-                <tr><th>Hibrid szakasz fogyasztása töltés nélkül</th><td>${num.format(r.noChargeFuelLitres)} l &rarr; <strong>${huf.format(r.noChargeFuelCost)} Ft</strong></td></tr>
-                <tr><th>Költség / km elektromosan</th><td>${num.format(r.evCostPerKm)} Ft/km</td></tr>
-                <tr><th>Költség / km hibridben</th><td>${num.format(r.fuelCostPerKm)} Ft/km</td></tr>
-                <tr><th>Számítási fogyasztás</th><td>${r.consumptionSource === "autó" ? "autó adatai" : "Beállítások"}</td></tr>
-                <tr><th>Elektromos fogyasztás</th><td>${num.format(r.evKwhPer100Km)} kWh/100 km</td></tr>
-                <tr><th>Hibrid fogyasztás</th><td>${num.format(r.fuelLitresPer100Km)} l/100 km</td></tr>
-                ${r.consumptionSource === "autó" ? `
-                    <tr><th>Akkumulátor a számításhoz</th><td>${num.format(r.batteryPercent)}%</td></tr>
-                    <tr><th>Autó aktuális akkumulátora</th><td>${num.format(r.stateOfCharge)}% | ${num.format(r.electricRangeKm)} km maradék út</td></tr>
-                    <tr><th>Üzemanyag</th><td>${fuelLevel}% | ${fuelRange} km maradék út</td></tr>
+                <tr><th>${t("row_ev_range_now")}</th><td>${num(r.evRange)} km (${num(r.stored)} kWh)</td></tr>
+                <tr><th>${t("row_distance")}</th><td>${num(r.distance)} km</td></tr>
+                <tr><th>${t("row_required_soc")}</th><td>${r.requiredSoc}%</td></tr>
+                <tr><th>${t("row_hybrid_no_charge")}</th><td>${num(r.noChargeHybridDistance)} km</td></tr>
+                <tr><th>${t("row_hybrid_with_charge")}</th><td>${num(r.deficitKm)} km</td></tr>
+                <tr><th>${t("row_charge_needed")}</th><td>${num(r.gridKwh)} kWh &rarr; <strong>${formatCurrency(r.chargeCost)}</strong></td></tr>
+                <tr><th>${t("row_fuel_no_charge")}</th><td>${num(r.noChargeFuelLitres)} l &rarr; <strong>${formatCurrency(r.noChargeFuelCost)}</strong></td></tr>
+                <tr><th>${t("row_cost_per_km_ev")}</th><td>${num(r.evCostPerKm)} ${symbol}/km</td></tr>
+                <tr><th>${t("row_cost_per_km_fuel")}</th><td>${num(r.fuelCostPerKm)} ${symbol}/km</td></tr>
+                <tr><th>${t("row_consumption_source")}</th><td>${consumptionSourceLabel}</td></tr>
+                <tr><th>${t("row_ev_consumption")}</th><td>${num(r.evKwhPer100Km)} kWh/100 km</td></tr>
+                <tr><th>${t("row_fuel_consumption")}</th><td>${num(r.fuelLitresPer100Km)} l/100 km</td></tr>
+                ${r.consumptionSource === "car" ? `
+                    <tr><th>${t("row_battery_for_calc")}</th><td>${num(r.batteryPercent)}%</td></tr>
+                    <tr><th>${t("row_car_current_battery")}</th><td>${t("row_car_current_battery_value", { soc: num(r.stateOfCharge), range: num(r.electricRangeKm) })}</td></tr>
+                    <tr><th>${t("row_fuel")}</th><td>${t("row_fuel_value", { level: fuelLevel, range: fuelRange })}</td></tr>
                 ` : ""}
-                <tr><th>Teljes feltöltés ára (100%-ig)</th><td>${num.format(r.fullChargeKwh)} kWh &rarr; ${huf.format(r.fullChargeCost)} Ft</td></tr>
+                <tr><th>${t("row_full_charge")}</th><td>${num(r.fullChargeKwh)} kWh &rarr; ${formatCurrency(r.fullChargeCost)}</td></tr>
             </tbody>
         </table>
         <p class="note">
-            Fordulópont: a töltés eddig az áramárig éri meg: <strong>${num.format(r.breakEvenElecPrice)} Ft/kWh</strong>
-            (illetve ettől az üzemanyagártól: ${num.format(r.breakEvenFuelPrice)} Ft/l).
+            ${t("note_break_even", {
+                elecPrice: `<strong>${formatCurrency(r.breakEvenElecPrice)}/kWh</strong>`,
+                fuelPrice: `${formatCurrency(r.breakEvenFuelPrice)}/l`
+            })}
         </p>
     `;
 }

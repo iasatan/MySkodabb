@@ -7,10 +7,33 @@ const DEFAULT_BATTERY_KWH = 25.7;
 const DEFAULT_FUEL_L_PER_100_KM = 6;
 const DEFAULT_FUEL_TANK_LITRES = 45;
 const DEFAULT_EV_KWH_PER_100_KM = 18;
+const DEFAULT_LANGUAGE = "hu";
+const DEFAULT_CURRENCY = "HUF";
+
+const SUPPORTED_LANGUAGES = [
+    { code: "hu", name: "Magyar" },
+    { code: "en", name: "English" }
+];
+
+const SUPPORTED_CURRENCIES = [
+    { code: "HUF", name: "Forint" },
+    { code: "EUR", name: "Euró" },
+    { code: "PLN", name: "Zloty" },
+    { code: "CZK", name: "Cseh korona" },
+    { code: "RON", name: "Román lej" },
+    { code: "BGN", name: "Bolgár leva" },
+    { code: "SEK", name: "Svéd korona" },
+    { code: "CHF", name: "Svájci frank" },
+    { code: "GBP", name: "Font sterling" }
+];
 
 function positiveNumberOrDefault(value, defaultValue) {
     const number = Number(value);
     return Number.isFinite(number) && number > 0 ? number : defaultValue;
+}
+
+function supportedOrDefault(value, list, defaultValue) {
+    return list.some((item) => item.code === value) ? value : defaultValue;
 }
 
 function loadSkodaSettings() {
@@ -26,7 +49,9 @@ function loadSkodaSettings() {
             batteryKwh: positiveNumberOrDefault(parsed.batteryKwh, DEFAULT_BATTERY_KWH),
             fuelLitresPer100Km: positiveNumberOrDefault(parsed.fuelLitresPer100Km, DEFAULT_FUEL_L_PER_100_KM),
             fuelTankLitres: positiveNumberOrDefault(parsed.fuelTankLitres, DEFAULT_FUEL_TANK_LITRES),
-            evKwhPer100Km: positiveNumberOrDefault(parsed.evKwhPer100Km, DEFAULT_EV_KWH_PER_100_KM)
+            evKwhPer100Km: positiveNumberOrDefault(parsed.evKwhPer100Km, DEFAULT_EV_KWH_PER_100_KM),
+            language: supportedOrDefault(parsed.language, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE),
+            currency: supportedOrDefault(parsed.currency, SUPPORTED_CURRENCIES, DEFAULT_CURRENCY)
         };
     } catch {
         return {
@@ -38,7 +63,9 @@ function loadSkodaSettings() {
             batteryKwh: DEFAULT_BATTERY_KWH,
             fuelLitresPer100Km: DEFAULT_FUEL_L_PER_100_KM,
             fuelTankLitres: DEFAULT_FUEL_TANK_LITRES,
-            evKwhPer100Km: DEFAULT_EV_KWH_PER_100_KM
+            evKwhPer100Km: DEFAULT_EV_KWH_PER_100_KM,
+            language: DEFAULT_LANGUAGE,
+            currency: DEFAULT_CURRENCY
         };
     }
 }
@@ -51,7 +78,7 @@ function trimTrailingSlashes(value) {
     return value.slice(0, end);
 }
 
-function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer100Km, fuelTankLitres, evKwhPer100Km }) {
+function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer100Km, fuelTankLitres, evKwhPer100Km, language, currency }) {
     localStorage.setItem(
         SKODA_STORAGE_KEY,
         JSON.stringify({
@@ -63,7 +90,9 @@ function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer
             batteryKwh: positiveNumberOrDefault(batteryKwh, DEFAULT_BATTERY_KWH),
             fuelLitresPer100Km: positiveNumberOrDefault(fuelLitresPer100Km, DEFAULT_FUEL_L_PER_100_KM),
             fuelTankLitres: positiveNumberOrDefault(fuelTankLitres, DEFAULT_FUEL_TANK_LITRES),
-            evKwhPer100Km: positiveNumberOrDefault(evKwhPer100Km, DEFAULT_EV_KWH_PER_100_KM)
+            evKwhPer100Km: positiveNumberOrDefault(evKwhPer100Km, DEFAULT_EV_KWH_PER_100_KM),
+            language: supportedOrDefault(language, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE),
+            currency: supportedOrDefault(currency, SUPPORTED_CURRENCIES, DEFAULT_CURRENCY)
         })
     );
 }

@@ -13,77 +13,86 @@
         <span class="brand-sub">Utility</span>
     </a>
     <nav>
-        <a href="index.html">Kezdőlap</a>
-        <a href="calculator.html">Töltés kalkulátor</a>
-        <a href="settings.html" class="active">Beállítások</a>
+        <a href="index.html" data-i18n="nav_home">Kezdőlap</a>
+        <a href="calculator.html" data-i18n="nav_calculator">Töltés kalkulátor</a>
+        <a href="settings.html" class="active" data-i18n="nav_settings">Beállítások</a>
     </nav>
 </header>
 
 <main class="page">
-    <h1>Beállítások</h1>
-    <p class="lead">
+    <h1 data-i18n="settings_title">Beállítások</h1>
+    <p class="lead" data-i18n="settings_lead">
         Az API kulcs és a VIN csak ebben a böngészőben, a localStorage-ban tárolódik –
         a lekérés a telepített Cloudflare proxyn keresztül jut el a Škoda API-hoz.
     </p>
 
     <form id="settings-form" class="panel" novalidate autocomplete="off">
         <div class="field">
-            <label for="apiKey">MyŠkoda Public API kulcs (X-API-Key)</label>
+            <label for="apiKey" data-i18n="label_apiKey">MyŠkoda Public API kulcs (X-API-Key)</label>
             <input type="password" id="apiKey" placeholder="a MyŠkoda appban létrehozott kulcs" autocomplete="off" />
         </div>
         <div class="field">
-            <label for="vin">VIN</label>
+            <label for="vin" data-i18n="label_vin">VIN</label>
             <input type="text" id="vin" maxlength="17" placeholder="TMBJJ7NX0MY000000" spellcheck="false" />
         </div>
         <div class="field">
-            <label for="homeAddress">Otthoni cím</label>
+            <label for="homeAddress" data-i18n="label_homeAddress">Otthoni cím</label>
             <input type="text" id="homeAddress" placeholder="Budapest, Kossuth Lajos utca 1." autocomplete="street-address" />
         </div>
         <div class="field">
-            <label for="batteryKwh">Akkumulátor kapacitás (kWh)</label>
+            <label for="batteryKwh" data-i18n="label_batteryKwh">Akkumulátor kapacitás (kWh)</label>
             <input type="number" id="batteryKwh" min="0.1" step="0.1" value="25.7" required />
         </div>
         <div class="field">
-            <label for="fuelLitresPer100Km">Hibrid fogyasztás (l/100 km)</label>
+            <label for="fuelLitresPer100Km" data-i18n="label_fuelLitresPer100Km">Hibrid fogyasztás (l/100 km)</label>
             <input type="number" id="fuelLitresPer100Km" min="0.1" step="0.1" value="6" required />
         </div>
         <div class="field">
-            <label for="fuelTankLitres">Benzintartály kapacitása (l)</label>
+            <label for="fuelTankLitres" data-i18n="label_fuelTankLitres">Benzintartály kapacitása (l)</label>
             <input type="number" id="fuelTankLitres" min="1" step="0.1" value="45" required />
         </div>
         <div class="field">
-            <label for="evKwhPer100Km">Elektromos fogyasztás (kWh/100 km)</label>
+            <label for="evKwhPer100Km" data-i18n="label_evKwhPer100Km">Elektromos fogyasztás (kWh/100 km)</label>
             <input type="number" id="evKwhPer100Km" min="0.1" step="0.1" value="18" required />
         </div>
+        <div class="field">
+            <label for="language" data-i18n="label_language">Nyelv</label>
+            <select id="language"></select>
+        </div>
+        <div class="field">
+            <label for="currency" data-i18n="label_currency">Pénznem</label>
+            <select id="currency"></select>
+        </div>
         <div class="actions">
-            <button class="btn" type="submit">Mentés</button>
-            <button class="btn ghost" type="button" id="test-btn">Kapcsolat tesztelése</button>
-            <button class="btn ghost danger" type="button" id="clear-btn">Törlés</button>
+            <button class="btn" type="submit" data-i18n="btn_save">Mentés</button>
+            <button class="btn ghost" type="button" id="test-btn" data-i18n="btn_test">Kapcsolat tesztelése</button>
+            <button class="btn ghost danger" type="button" id="clear-btn" data-i18n="btn_clear">Törlés</button>
         </div>
     </form>
 
     <section id="settings-status" class="result" hidden></section>
 
     <section class="panel assumptions">
-        <h2>Jó tudni</h2>
+        <h2 data-i18n="good_to_know_title">Jó tudni</h2>
         <ul>
-            <li>A kulcsot a MyŠkoda mobilappban tudod létrehozni és kezelni: <a href="https://go.skoda.eu/api-keys">go.skoda.eu/api-keys</a>.</li>
-            <li>A kulcs csak a kiválasztáskor megadott járművekre érvényes és lejár; a lejárat a válasz <code>X-API-Key-Expires-At</code> fejlécében jön.</li>
-            <li>A lekérdezés VIN-enként óránként 20 kérésre korlátozott.</li>
-            <li>A lekérés a <code>skoda-api-proxy.satanadam.workers.dev</code> Cloudflare Workeren keresztül történik.</li>
-            <li>A localStorage-ban tárolt kulcs XSS esetén kiolvasható; közös gépen inkább töröld használat után.</li>
+            <li id="good-to-know-1">A kulcsot a MyŠkoda mobilappban tudod létrehozni és kezelni: <a href="https://go.skoda.eu/api-keys">go.skoda.eu/api-keys</a>.</li>
+            <li id="good-to-know-2">A kulcs csak a kiválasztáskor megadott járművekre érvényes és lejár; a lejárat a válasz <code>X-API-Key-Expires-At</code> fejlécében jön.</li>
+            <li data-i18n="good_to_know_3">A lekérdezés VIN-enként óránként 20 kérésre korlátozott.</li>
+            <li id="good-to-know-4">A lekérés a <code>skoda-api-proxy.satanadam.workers.dev</code> Cloudflare Workeren keresztül történik.</li>
+            <li data-i18n="good_to_know_5">A localStorage-ban tárolt kulcs XSS esetén kiolvasható; közös gépen inkább töröld használat után.</li>
         </ul>
-        <p class="note">
+        <p class="note" id="docs-note">
             Dokumentáció: <a href="https://public.api.connect.skoda-auto.cz/docs">MyŠkoda Public API</a>
         </p>
     </section>
 </main>
 
 <footer class="footer">
-    <p>Nem hivatalos, rajongói segédoldal. Škoda Auto a.s. védjegyei a jogtulajdonosé.</p>
+    <p data-i18n="footer_disclaimer">Nem hivatalos, rajongói segédoldal. Škoda Auto a.s. védjegyei a jogtulajdonosé.</p>
 </footer>
 
 <script src="skodaApi.js"></script>
+<script src="i18n.js"></script>
 <script src="settings.js"></script>
 </body>
 </html>

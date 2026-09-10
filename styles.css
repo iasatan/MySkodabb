@@ -310,6 +310,20 @@ form.panel .btn {
     background: #fbfcfb;
 }
 
+.field select {
+    padding: .7rem .8rem;
+    border: 1px solid #cdd6d2;
+    border-radius: 8px;
+    font-size: 1rem;
+    background: #fbfcfb;
+    color: inherit;
+}
+
+.field select:focus {
+    outline: 2px solid var(--electric);
+    border-color: var(--emerald);
+}
+
 .field input:focus {
     outline: 2px solid var(--electric);
     border-color: var(--emerald);

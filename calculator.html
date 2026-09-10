@@ -13,76 +13,77 @@
         <span class="brand-sub">Utility</span>
     </a>
     <nav>
-        <a href="index.html">Kezdőlap</a>
-        <a href="calculator.html" class="active">Töltés kalkulátor</a>
-        <a href="settings.html">Beállítások</a>
+        <a href="index.html" data-i18n="nav_home">Kezdőlap</a>
+        <a href="calculator.html" class="active" data-i18n="nav_calculator">Töltés kalkulátor</a>
+        <a href="settings.html" data-i18n="nav_settings">Beállítások</a>
     </nav>
 </header>
 
 <main class="page">
-    <h1>Töltés kalkulátor</h1>
-    <p class="lead">
+    <h1 data-i18n="calc_title">Töltés kalkulátor</h1>
+    <p class="lead" data-i18n="calc_lead">
         Add meg az aktuális árakat és az utat, és megmondom, hogy a szükséges energiát
         tölteni vagy benzinből előállítani olcsóbb.
     </p>
 
     <form id="calc-form" class="panel" novalidate>
         <div class="field">
-            <label for="fuelPrice">Üzemanyag ár (Ft/l)</label>
+            <label for="fuelPrice" id="fuelPrice-label">Üzemanyag ár (Ft/l)</label>
             <input type="number" id="fuelPrice" min="0" step="0.1" value="600" required />
         </div>
         <div class="field">
-            <label for="elecPrice">Áram ár (Ft/kWh)</label>
+            <label for="elecPrice" id="elecPrice-label">Áram ár (Ft/kWh)</label>
             <input type="number" id="elecPrice" min="0" step="0.1" value="40" required />
         </div>
         <div class="field">
-            <label for="battery">Akkumulátor töltöttség (%)</label>
+            <label for="battery" data-i18n="label_battery">Akkumulátor töltöttség (%)</label>
             <input type="number" id="battery" min="0" max="100" step="1" value="20" required />
             <div class="link-row">
-                <button type="button" id="refresh-data" class="link-btn">Adatok frissítése</button>
+                <button type="button" id="refresh-data" class="link-btn" data-i18n="btn_refresh_data">Adatok frissítése</button>
             </div>
             <p class="hint" id="battery-hint"></p>
         </div>
         <div class="field">
-            <label for="distance">Táv otthontól (km)</label>
+            <label for="distance" data-i18n="label_distance">Táv otthontól (km)</label>
             <input type="number" id="distance" min="0" step="0.1" value="50" required />
-            <button type="button" id="route-distance" class="link-btn">Távolság frissítése az autó helyzete alapján</button>
+            <button type="button" id="route-distance" class="link-btn" data-i18n="btn_refresh_distance">Távolság frissítése az autó helyzete alapján</button>
             <p class="hint" id="route-hint"></p>
         </div>
         <div class="field checkbox">
             <label for="use-car-consumption">
                 <input type="checkbox" id="use-car-consumption" />
-                Az autó által számolt fogyasztás használata
+                <span data-i18n="label_use_car_consumption">Az autó által számolt fogyasztás használata</span>
             </label>
-            <p class="hint" id="consumption-hint">Kikapcsolva: a Beállításokban megadott fogyasztási értékek használata.</p>
+            <p class="hint" id="consumption-hint" data-i18n="consumption_hint_off">Kikapcsolva: a Beállításokban megadott fogyasztási értékek használata.</p>
         </div>
         <div class="field">
-            <label for="targetSoc">Töltési limit hazaéréshez (%)</label>
+            <label for="targetSoc" data-i18n="label_targetSoc">Töltési limit hazaéréshez (%)</label>
             <input type="number" id="targetSoc" min="0" max="100" step="1" value="50" />
-            <button type="button" id="set-limit" class="link-btn">Beállítás az autóban (Még nem elérhető)</button>
-            <p class="hint" id="limit-hint">Számítás után frissül, de kézzel átírható.</p>
+            <button type="button" id="set-limit" class="link-btn" data-i18n="btn_set_limit">Beállítás az autóban (Még nem elérhető)</button>
+            <p class="hint" id="limit-hint" data-i18n="limit_hint_default">Számítás után frissül, de kézzel átírható.</p>
         </div>
-        <button class="btn" type="submit">Számítás</button>
+        <button class="btn" type="submit" data-i18n="btn_calculate">Számítás</button>
     </form>
 
     <section id="result" class="result" hidden></section>
 
     <section class="panel assumptions">
-        <h2>Feltételezések</h2>
-        <ul>
+        <h2 data-i18n="assumptions_title">Feltételezések</h2>
+        <ul id="assumptions-list">
             <li>Akkumulátor: 25,7 kWh</li>
             <li>Hibrid fogyasztás: 6 l/100 km</li>
             <li>Elektromos fogyasztás: 18 kWh/100 km</li>
-            <li>Töltési veszteség: 10% (a hálózatból vett energia ennyivel több)</li>
+            <li data-i18n="assumption_loss">Töltési veszteség: 10% (a hálózatból vett energia ennyivel több)</li>
         </ul>
     </section>
 </main>
 
 <footer class="footer">
-    <p>Nem hivatalos, rajongói segédoldal. Škoda Auto a.s. védjegyei a jogtulajdonosé.</p>
+    <p data-i18n="footer_disclaimer">Nem hivatalos, rajongói segédoldal. Škoda Auto a.s. védjegyei a jogtulajdonosé.</p>
 </footer>
 
 <script src="skodaApi.js"></script>
+<script src="i18n.js"></script>
 <script src="calculator.js"></script>
 </body>
 </html>

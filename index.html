@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>MySkodabb</title>
 <link rel="stylesheet" href="styles.css" />
-<link rel="icon" type="image/x-icon" href="favicon.ico"
+<link rel="icon" type="image/x-icon" href="favicon.ico" />
 </head>
 <body>
 <header class="topbar">
@@ -14,60 +14,61 @@
         <span class="brand-sub">Utility</span>
     </a>
     <nav>
-        <a href="index.html" class="active">Kezdőlap</a>
-        <a href="calculator.html">Töltés kalkulátor</a>
-        <a href="settings.html">Beállítások</a>
+        <a href="index.html" class="active" data-i18n="nav_home">Kezdőlap</a>
+        <a href="calculator.html" data-i18n="nav_calculator">Töltés kalkulátor</a>
+        <a href="settings.html" data-i18n="nav_settings">Beállítások</a>
     </nav>
 </header>
 
 <main>
 <section class="page" id="vehicle-section">
     <div class="section-head">
-        <h1>Az autóm</h1>
-        <button type="button" id="refresh-vehicle" class="link-btn">Frissítés</button>
+        <h1 data-i18n="home_title">Az autóm</h1>
+        <button type="button" id="refresh-vehicle" class="link-btn" data-i18n="refresh">Frissítés</button>
     </div>
-    <p class="hint" id="vehicle-hint">Betöltés…</p>
+    <p class="hint" id="vehicle-hint" data-i18n="loading">Betöltés…</p>
     <div class="cards vehicle-cards" id="vehicle-cards"></div>
     <div class="panel map-panel" id="map-panel" hidden>
-        <h2>Hol parkol</h2>
+        <h2 data-i18n="map_title">Hol parkol</h2>
         <iframe id="map-frame" title="Parkolási pozíció" loading="lazy" referrerpolicy="no-referrer"></iframe>
-        <p class="note"><a id="map-link" href="#" target="_blank" rel="noopener noreferrer">Megnyitás nagy térképen</a></p>
+        <p class="note"><a id="map-link" href="#" target="_blank" rel="noopener noreferrer" data-i18n="map_open_link">Megnyitás nagy térképen</a></p>
     </div>
 </section>
 
 <section class="hero">
     <div class="hero-inner">
-        <p class="eyebrow">Škoda Utility</p>
-        <h2>Megéri most tölteni?</h2>
-        <p class="lead">
+        <p class="eyebrow" data-i18n="hero_eyebrow">Škoda Utility</p>
+        <h2 data-i18n="hero_title">Megéri most tölteni?</h2>
+        <p class="lead" data-i18n="hero_lead">
             Kis eszközgyűjtemény plug-in hibrid Škoda tulajdonosoknak.
             Számold ki, hogy megéri-e tölteni, vagy olcsóbb hibrid módban menni.
         </p>
-        <a class="btn" href="calculator.html">Töltés kalkulátor megnyitása</a>
+        <a class="btn" href="calculator.html" data-i18n="hero_cta">Töltés kalkulátor megnyitása</a>
     </div>
 </section>
 
 <section class="cards specs" id="specs-cards">
     <article class="card">
         <h2 id="spec-battery">25,7 kWh</h2>
-        <p>Akkumulátor kapacitás</p>
+        <p data-i18n="spec_battery_label">Akkumulátor kapacitás</p>
     </article>
     <article class="card">
         <h2 id="spec-fuel">6 l/100 km</h2>
-        <p>Fogyasztás hibrid módban <span class="spec-source" id="spec-fuel-source"></span></p>
+        <p><span data-i18n="spec_fuel_label">Fogyasztás hibrid módban</span> <span class="spec-source" id="spec-fuel-source"></span></p>
     </article>
     <article class="card">
         <h2 id="spec-ev">18 kWh/100 km</h2>
-        <p>Fogyasztás elektromos módban <span class="spec-source" id="spec-ev-source"></span></p>
+        <p><span data-i18n="spec_ev_label">Fogyasztás elektromos módban</span> <span class="spec-source" id="spec-ev-source"></span></p>
     </article>
 </section>
 </main>
 
 <footer class="footer">
-    <p>Nem hivatalos, rajongói segédoldal. Škoda Auto a.s. védjegyei a jogtulajdonosé.</p>
+    <p data-i18n="footer_disclaimer">Nem hivatalos, rajongói segédoldal. Škoda Auto a.s. védjegyei a jogtulajdonosé.</p>
 </footer>
 
 <script src="skodaApi.js"></script>
+<script src="i18n.js"></script>
 <script src="home.js"></script>
 </body>
 </html>
