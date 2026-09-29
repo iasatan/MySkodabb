@@ -4,6 +4,8 @@ const refreshVehicleBtn = document.getElementById("refresh-vehicle");
 const mapPanel = document.getElementById("map-panel");
 const mapFrame = document.getElementById("map-frame");
 const mapLink = document.getElementById("map-link");
+const googleMapLink = document.getElementById("google-map-link");
+const appleMapLink = document.getElementById("apple-map-link");
 
 const specBattery = document.getElementById("spec-battery");
 const specFuel = document.getElementById("spec-fuel");
@@ -49,6 +51,8 @@ function renderMap({ latitude, longitude }) {
     const bbox = [longitude - delta, latitude - delta, longitude + delta, latitude + delta].join("%2C");
     mapFrame.src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${latitude}%2C${longitude}`;
     mapLink.href = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=17/${latitude}/${longitude}`;
+    googleMapLink.href = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+    appleMapLink.href = `https://maps.apple.com/?ll=${latitude},${longitude}`;
     mapPanel.hidden = false;
 }
 
