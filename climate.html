@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Klímavezérlés | Škoda Utility</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="index.html">
+        <span class="brand-mark">ŠKODA</span>
+        <span class="brand-sub">Utility</span>
+    </a>
+    <nav>
+        <a href="index.html" data-i18n="nav_home">Kezdőlap</a>
+        <a href="climate.html" class="active" data-i18n="nav_climate">Klíma</a>
+        <a href="calculator.html" data-i18n="nav_calculator">Töltés kalkulátor</a>
+        <a href="settings.html" data-i18n="nav_settings">Beállítások</a>
+    </nav>
+</header>
+
+<main class="page">
+    <h1 data-i18n="climate_title">Klímavezérlés</h1>
+    <p class="lead" data-i18n="climate_lead">Állítsd be az utastér kívánt hőmérsékletét, majd indítsd el vagy állítsd le az autó klímáját.</p>
+
+    <form id="climate-form" class="panel climate-panel" novalidate>
+        <div class="field">
+            <label for="target-temperature" data-i18n="climate_temperature">Célhőmérséklet (°C)</label>
+            <div class="temperature-input">
+                <input type="number" id="target-temperature" step="0.5" value="22" required inputmode="decimal" />
+                <span class="temperature-unit" aria-hidden="true">°C</span>
+            </div>
+        </div>
+
+        <div class="field checkbox">
+            <label for="without-external-power">
+                <input type="checkbox" id="without-external-power" />
+                <span data-i18n="climate_without_power">Klíma engedélyezése külső áramforrás nélkül</span>
+            </label>
+            <p class="hint" data-i18n="climate_power_note">Bekapcsolva az autó a hajtóakkumulátort használhatja akkor is, ha nincs töltőre csatlakoztatva.</p>
+        </div>
+
+        <div class="actions">
+            <button class="btn" id="start-climate" type="submit" data-i18n="climate_start">Klíma indítása</button>
+            <button class="btn ghost danger" id="stop-climate" type="button" data-i18n="climate_stop">Klíma leállítása</button>
+        </div>
+        <output id="climate-status" class="climate-status" aria-live="polite"></output>
+    </form>
+</main>
+
+<footer class="footer">
+    <p data-i18n="footer_disclaimer">Nem hivatalos, rajongói segédoldal. Škoda Auto a.s. védjegyei a jogtulajdonosé.</p>
+</footer>
+
+<script src="skodaApi.js"></script>
+<script src="i18n.js"></script>
+<script src="climate.js"></script>
+</body>
+</html>

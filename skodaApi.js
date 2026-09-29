@@ -305,3 +305,38 @@ async function setChargingLimit(targetPercent) {
     }
     return target;
 }
+
+async function setAirConditioning(action, configuration) {
+    const settings = loadSkodaSettings();
+
+    if (!settings.apiKey || !settings.vin) {
+        throw new Error("Hiányzik az API kulcs vagy a VIN. Töltsd ki a Beállítások oldalon.");
+    }
+    if (!isValidVin(settings.vin)) {
+        throw new Error("A VIN formátuma érvénytelen (17 karakter).");
+    }
+    if (action !== "start" && action !== "stop") {
+        throw new Error("Érvénytelen klímavezérlési művelet.");
+    }
+
+    const url = new URL(`${settings.baseUrl}/api/v1/vehicles/${encodeURIComponent(settings.vin)}/air-conditioning/${action}`);
+    url.searchParams.set("apiKey", settings.apiKey);
+    const request = { method: "POST" };
+
+    if (action === "start") {
+        const temperature = Number(configuration?.targetTemperature?.value);
+        if (!Number.isFinite(temperature)) {
+            throw new Error("Adj meg érvényes célhőmérsékletet.");
+        }
+        request.headers = { "Content-Type": "application/json" };
+        request.body = JSON.stringify({
+            targetTemperature: { value: temperature, unit: "CELSIUS" },
+            airConditioningWithoutExternalPower: Boolean(configuration.airConditioningWithoutExternalPower)
+        });
+    }
+
+    const response = await fetch(url.toString(), request);
+    if (!response.ok) {
+        throw await toApiError(response);
+    }
+}

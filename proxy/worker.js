@@ -7,11 +7,12 @@ const UPSTREAM = "https://public.api.connect.skoda-auto.cz";
 const ALLOWED_ORIGIN = "https://iasatan.github.io";
 const VEHICLE_PATH = /^\/api\/v1\/vehicles\/[A-HJ-NPR-Z0-9]{17}$/;
 const CHARGING_LIMIT_PATH = /^\/api\/v1\/vehicles\/[A-HJ-NPR-Z0-9]{17}\/charging\/limit$/;
+const AIR_CONDITIONING_PATH = /^\/api\/v1\/vehicles\/[A-HJ-NPR-Z0-9]{17}\/air-conditioning\/(start|stop)$/;
 
 function corsHeaders() {
     return {
         "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-        "Access-Control-Allow-Methods": "GET, PUT, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Max-Age": "86400",
         "Access-Control-Expose-Headers": "X-API-Key-Expires-At, RateLimit-Remaining, RateLimit-Limit, RateLimit-Reset, Retry-After",
@@ -44,6 +45,15 @@ export default {
                 method: "PUT",
                 headers: { "X-API-Key": apiKey, "Content-Type": "application/json" },
                 body: await request.text()
+            });
+            return withCors(upstream);
+        }
+
+        if (request.method === "POST" && AIR_CONDITIONING_PATH.test(url.pathname)) {
+            const upstream = await fetch(UPSTREAM + url.pathname, {
+                method: "POST",
+                headers: { "X-API-Key": apiKey, "Content-Type": "application/json" },
+                body: await request.text() || undefined
             });
             return withCors(upstream);
         }

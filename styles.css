@@ -163,6 +163,36 @@ h1 {
     margin-top: 0;
 }
 
+.climate-panel {
+    max-width: 560px;
+}
+
+.climate-panel .temperature-input {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+}
+
+.climate-panel .temperature-input input {
+    width: 8rem;
+}
+
+.climate-panel .temperature-unit {
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.climate-status {
+    min-height: 1.55rem;
+    margin: 0;
+    grid-column: 1 / -1;
+}
+
+.climate-status.success {
+    color: var(--emerald);
+    font-weight: 600;
+}
+
 .link-btn {
     align-self: flex-start;
     background: none;

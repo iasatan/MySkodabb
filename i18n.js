@@ -3,6 +3,7 @@ const LOCALE_BY_LANGUAGE = { hu: "hu-HU", en: "en-GB" };
 const TRANSLATIONS = {
     hu: {
         nav_home: "Kezdőlap",
+        nav_climate: "Klíma",
         nav_calculator: "Töltés kalkulátor",
         nav_settings: "Beállítások",
         footer_disclaimer: "Nem hivatalos, rajongói segédoldal. Škoda Auto a.s. védjegyei a jogtulajdonosé.",
@@ -43,6 +44,17 @@ const TRANSLATIONS = {
         source_fresh: "friss",
         hint_data: "Adatok {source}, {time}.",
         hint_missing: " Nem elérhető adatok: {errors}.",
+
+        climate_title: "Klímavezérlés",
+        climate_lead: "Állítsd be az utastér kívánt hőmérsékletét, majd indítsd el vagy állítsd le az autó klímáját.",
+        climate_temperature: "Célhőmérséklet (°C)",
+        climate_without_power: "Klíma engedélyezése külső áramforrás nélkül",
+        climate_power_note: "Bekapcsolva az autó a hajtóakkumulátort használhatja akkor is, ha nincs töltőre csatlakoztatva.",
+        climate_start: "Klíma indítása",
+        climate_stop: "Klíma leállítása",
+        climate_requesting: "Kérés küldése…",
+        climate_started: "A klíma indítási kérelmét az autó elfogadta.",
+        climate_stopped: "A klíma leállítási kérelmét az autó elfogadta.",
 
         calc_title: "Töltés kalkulátor",
         calc_lead: "Add meg az aktuális árakat és az utat, és megmondom, hogy a szükséges energiát tölteni vagy benzinből előállítani olcsóbb.",
@@ -143,6 +155,7 @@ const TRANSLATIONS = {
     },
     en: {
         nav_home: "Home",
+        nav_climate: "Climate",
         nav_calculator: "Charging calculator",
         nav_settings: "Settings",
         footer_disclaimer: "Unofficial fan-made helper site. Škoda Auto a.s. trademarks belong to their owner.",
@@ -183,6 +196,17 @@ const TRANSLATIONS = {
         source_fresh: "fresh",
         hint_data: "Data {source}, {time}.",
         hint_missing: " Unavailable data: {errors}.",
+
+        climate_title: "Climate control",
+        climate_lead: "Set the desired cabin temperature, then start or stop the car's climate control.",
+        climate_temperature: "Target temperature (°C)",
+        climate_without_power: "Allow climate control without external power",
+        climate_power_note: "When enabled, the car may use its traction battery even when it is not connected to a charger.",
+        climate_start: "Start climate",
+        climate_stop: "Stop climate",
+        climate_requesting: "Sending request…",
+        climate_started: "The car accepted the request to start climate control.",
+        climate_stopped: "The car accepted the request to stop climate control.",
 
         calc_title: "Charging calculator",
         calc_lead: "Enter current prices and the distance, and I'll tell you whether it's cheaper to charge the required energy or produce it from fuel.",
