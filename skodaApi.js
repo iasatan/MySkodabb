@@ -297,7 +297,7 @@ async function setChargingLimit(targetPercent) {
     const response = await fetch(url.toString(), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetSOCInPercent: target })
+        body: JSON.stringify({ targetStateOfChargeInPercent: target })
     });
 
     if (!response.ok) {
