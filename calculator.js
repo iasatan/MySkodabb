@@ -5,8 +5,9 @@ const resultBox = document.getElementById("result");
 const distanceInput = document.getElementById("distance");
 const routeDistanceBtn = document.getElementById("route-distance");
 const routeHint = document.getElementById("route-hint");
-const useCarConsumptionInput = document.getElementById("use-car-consumption");
+const consumptionSourceInput = document.getElementById("consumption-source");
 const consumptionHint = document.getElementById("consumption-hint");
+delete consumptionHint.dataset.i18n;
 
 function num(value) {
     return new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 1 }).format(value);
@@ -109,17 +110,41 @@ let carConsumption = null;
 
 function getConsumption() {
     const settings = loadSkodaSettings();
-    return useCarConsumptionInput.checked && carConsumption
-        ? carConsumption
-        : {
-            fuelLitresPer100Km: settings.fuelLitresPer100Km,
-            evKwhPer100Km: settings.evKwhPer100Km,
-            source: "settings"
-        };
+    if (consumptionSourceInput.value === "history") return getHistoryConsumption(settings);
+    if (consumptionSourceInput.value === "car" && carConsumption) return carConsumption;
+    return {
+        fuelLitresPer100Km: settings.fuelLitresPer100Km,
+        evKwhPer100Km: settings.evKwhPer100Km,
+        source: "settings"
+    };
+}
+
+function historySampleLabel(sample) {
+    return sample ? t("consumption_history_sample", { count: sample.count, min: num(sample.minDistance), max: num(sample.maxDistance) })
+        : t("consumption_history_fallback");
+}
+
+function getHistoryConsumption(settings) {
+    let history = [];
+    try {
+        const saved = localStorage.getItem("myskodabb.tripStatistics.v1");
+        if (saved !== null) history = TripStatistics.deserializeTrips(saved).trips;
+    } catch {
+        history = [];
+    }
+    const distance = Number(distanceInput.value);
+    const estimate = ConsumptionHistory.estimateConsumption(history, distance, settings);
+    consumptionHint.className = estimate.electric && estimate.fuel ? "hint" : "hint error";
+    if (estimate.source === "settings") consumptionHint.textContent = t("consumption_history_unavailable");
+    else consumptionHint.textContent = t("consumption_history_summary", {
+        distance: num(distance), ev: num(estimate.evKwhPer100Km), fuel: num(estimate.fuelLitresPer100Km),
+        evSample: historySampleLabel(estimate.electric), fuelSample: historySampleLabel(estimate.fuel)
+    }) + " " + t("consumption_history_method");
+    return estimate;
 }
 
 async function loadCarConsumption() {
-    useCarConsumptionInput.disabled = true;
+    consumptionSourceInput.disabled = true;
     consumptionHint.className = "hint";
     consumptionHint.textContent = t("consumption_using_cache");
     try {
@@ -162,22 +187,24 @@ async function loadCarConsumption() {
             fuelConsumption: num(fuelLitresPer100Km)
         });
     } catch (error) {
-        useCarConsumptionInput.checked = false;
+        consumptionSourceInput.value = "settings";
         carConsumption = null;
         consumptionHint.className = "hint error";
         consumptionHint.textContent = error.message;
     } finally {
-        useCarConsumptionInput.disabled = false;
+        consumptionSourceInput.disabled = false;
+        runCalculation(false);
     }
 }
 
-useCarConsumptionInput.addEventListener("change", () => {
-    if (useCarConsumptionInput.checked) {
-        loadCarConsumption();
+consumptionSourceInput.addEventListener("change", async () => {
+    if (consumptionSourceInput.value === "car") {
+        await loadCarConsumption();
     } else {
         carConsumption = null;
         consumptionHint.className = "hint";
-        consumptionHint.textContent = t("consumption_hint_off");
+        consumptionHint.textContent = t("consumption_hint_settings");
+        runCalculation(false);
     }
 });
 
@@ -229,6 +256,7 @@ async function loadRouteDistance() {
         const distance = await fetchRouteDistance();
         distanceInput.value = distance.toFixed(1);
         routeHint.textContent = t("route_hint", { distance: num(distance) });
+        runCalculation(false);
     } catch (error) {
         routeHint.className = "hint error";
         routeHint.textContent = error.message;
@@ -331,7 +359,7 @@ function render(r) {
         mode = "fuel";
     }
 
-    const consumptionSourceLabel = r.consumptionSource === "car" ? t("consumption_source_car") : t("consumption_source_settings");
+    const consumptionSourceLabel = t(`consumption_source_${r.consumptionSource}`);
 
     resultBox.hidden = false;
     resultBox.className = `result ${mode}`;

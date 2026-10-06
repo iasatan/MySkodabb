@@ -50,12 +50,14 @@
             <button type="button" id="route-distance" class="link-btn" data-i18n="btn_refresh_distance">Távolság frissítése az autó helyzete alapján</button>
             <p class="hint" id="route-hint"></p>
         </div>
-        <div class="field checkbox">
-            <label for="use-car-consumption">
-                <input type="checkbox" id="use-car-consumption" />
-                <span data-i18n="label_use_car_consumption">Az autó által számolt fogyasztás használata</span>
-            </label>
-            <p class="hint" id="consumption-hint" data-i18n="consumption_hint_off">Kikapcsolva: a Beállításokban megadott fogyasztási értékek használata.</p>
+        <div class="field">
+            <label for="consumption-source" data-i18n="label_consumption_source">Fogyasztási adatok forrása</label>
+            <select id="consumption-source">
+                <option value="settings" data-i18n="consumption_source_settings">Beállítások</option>
+                <option value="car" data-i18n="consumption_source_car">Autó adatai</option>
+                <option value="history" data-i18n="consumption_source_history">Utazási előzmények</option>
+            </select>
+            <p class="hint" id="consumption-hint" aria-live="polite" data-i18n="consumption_hint_settings">A Beállításokban megadott fogyasztási értékek használata.</p>
         </div>
         <div class="field">
             <label for="targetSoc" data-i18n="label_targetSoc">Töltési limit hazaéréshez (%)</label>
@@ -85,6 +87,8 @@
 
 <script src="skodaApi.js"></script>
 <script src="i18n.js"></script>
+<script src="statistics-core.js"></script>
+<script src="consumption-history.js"></script>
 <script src="calculator.js"></script>
 </body>
 </html>
