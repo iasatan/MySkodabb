@@ -450,6 +450,20 @@ form.panel .btn {
     margin: 0;
 }
 
+.footer-quiet-link {
+    display: inline-block;
+    margin-top: .65rem;
+    color: #9fb3ac;
+    font-size: .78rem;
+    text-decoration: none;
+}
+
+.footer-quiet-link:hover,
+.footer-quiet-link:focus-visible {
+    color: #fff;
+    text-decoration: underline;
+}
+
 @media (max-width: 560px) {
     body {
         line-height: 1.5;
