@@ -1,6 +1,7 @@
 "use strict";
 
 Object.assign(TRANSLATIONS.en, {
+    stats_summary: "Summary",
     stats_clear_saved: "Clear saved data", stats_saved: "Saved on this device.",
     stats_restored: "{name} · {count} trips restored from this device · {skipped} invalid rows skipped on import.",
     stats_save_failed: "Could not save this upload on this device. It is available for this session only; any previously saved data remains unchanged.",
@@ -30,6 +31,7 @@ Object.assign(TRANSLATIONS.en, {
     stats_fuel_note: "{value} l estimated", stats_days_note: "{value} km/active day", stats_known_distance: "Of distance with recorded fuel use"
 });
 Object.assign(TRANSLATIONS.hu, {
+    stats_summary: "Összesítő",
     stats_clear_saved: "Mentett adatok törlése", stats_saved: "Mentve ezen az eszközön.",
     stats_restored: "{name} · {count} utazás visszaállítva erről az eszközről · {skipped} hibás sor kihagyva az importáláskor.",
     stats_save_failed: "A feltöltés nem menthető ezen az eszközön. Csak ebben a munkamenetben érhető el; a korábban mentett adatok változatlanok.",
@@ -86,6 +88,26 @@ document.addEventListener("DOMContentLoaded", () => {
     let page = 0;
     let charts = [];
     let factorChart = null;
+    const sectionStorageKey = "myskodabb.statisticsSections.v1";
+    const sections = Array.from(document.querySelectorAll("#statistics-results details"));
+    const sectionKey = section => section.querySelector("summary [data-i18n]").dataset.i18n;
+    try {
+        const savedSections = JSON.parse(localStorage.getItem(sectionStorageKey));
+        if (savedSections && typeof savedSections === "object" && !Array.isArray(savedSections)) {
+            sections.forEach(section => {
+                const savedOpen = savedSections[sectionKey(section)];
+                if (typeof savedOpen === "boolean") section.open = savedOpen;
+            });
+        }
+    } catch {}
+    sections.forEach(section => {
+        section.addEventListener("toggle", () => {
+            if (section.open) charts.filter(instance => section.contains(instance.canvas)).forEach(instance => instance.resize());
+            try {
+                localStorage.setItem(sectionStorageKey, JSON.stringify(Object.fromEntries(sections.map(item => [sectionKey(item), item.open]))));
+            } catch {}
+        });
+    });
     const pageSize = 25;
     const number = value => value === null || !Number.isFinite(value) ? "—" : formatNumber(value);
     const date = value => value.toLocaleDateString(getLocale());

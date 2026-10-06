@@ -13,10 +13,12 @@
         <span class="brand-mark">ŠKODA</span>
         <span class="brand-sub">Utility</span>
     </a>
-    <nav>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" data-i18n="nav_menu">Menü</button>
+    <nav id="primary-nav">
         <a href="index.html" class="active" data-i18n="nav_home">Kezdőlap</a>
         <a href="climate.html" data-i18n="nav_climate">Klíma</a>
         <a href="calculator.html" data-i18n="nav_calculator">Töltés kalkulátor</a>
+        <a href="statistics.html" data-i18n="nav_statistics">Statisztikák</a>
         <a href="settings.html" data-i18n="nav_settings">Beállítások</a>
     </nav>
 </header>
@@ -70,11 +72,11 @@
 
 <footer class="footer">
     <p data-i18n="footer_disclaimer">Nem hivatalos, rajongói segédoldal. Škoda Auto a.s. védjegyei a jogtulajdonosé.</p>
-    <a class="footer-quiet-link" href="statistics.html" data-i18n="stats_link">Statisztikák</a>
 </footer>
 
 <script src="skodaApi.js"></script>
 <script src="i18n.js"></script>
 <script src="home.js"></script>
+<script src="header.js"></script>
 </body>
 </html>

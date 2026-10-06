@@ -12,10 +12,12 @@
         <span class="brand-mark">ŠKODA</span>
         <span class="brand-sub">Utility</span>
     </a>
-    <nav>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" data-i18n="nav_menu">Menü</button>
+    <nav id="primary-nav">
         <a href="index.html" data-i18n="nav_home">Kezdőlap</a>
         <a href="climate.html" data-i18n="nav_climate">Klíma</a>
         <a href="calculator.html" class="active" data-i18n="nav_calculator">Töltés kalkulátor</a>
+        <a href="statistics.html" data-i18n="nav_statistics">Statisztikák</a>
         <a href="settings.html" data-i18n="nav_settings">Beállítások</a>
     </nav>
 </header>
@@ -89,6 +91,7 @@
 <script src="i18n.js"></script>
 <script src="statistics-core.js"></script>
 <script src="consumption-history.js"></script>
+<script src="header.js"></script>
 <script src="calculator.js"></script>
 </body>
 </html>

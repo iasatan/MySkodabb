@@ -61,6 +61,17 @@ body {
     gap: .5rem .9rem;
 }
 
+.nav-toggle {
+    display: none;
+    padding: .45rem .75rem;
+    border: 1px solid rgba(255, 255, 255, .45);
+    border-radius: 4px;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+
 .topbar nav a {
     color: #dfe8e4;
     text-decoration: none;
@@ -464,22 +475,37 @@ form.panel .btn {
     text-decoration: underline;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 700px) {
     body {
         line-height: 1.5;
     }
 
     .topbar {
-        gap: .4rem;
+        justify-content: space-between;
+        gap: .5rem;
     }
 
     .topbar nav {
         width: 100%;
-        gap: .4rem .85rem;
+        flex-direction: column;
+        gap: .15rem;
+        padding-top: .5rem;
+        border-top: 1px solid rgba(255, 255, 255, .2);
+    }
+
+    .topbar nav:not(.is-open) {
+        display: none;
+    }
+
+    .nav-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .topbar nav a {
         font-size: .88rem;
+        padding: .45rem 0;
     }
 
     .hero {

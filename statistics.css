@@ -14,8 +14,13 @@
 .statistics-metric dt { font-size: .82rem; color: var(--muted); }
 .statistics-metric dd { margin: .3rem 0 0; color: var(--emerald); font-size: 1.4rem; font-weight: 650; overflow-wrap: anywhere; }
 .statistics-metric small { display: block; color: var(--muted); font-size: .78rem; font-weight: normal; }
-.statistics-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem; margin-top: 2rem; }
-.statistics-charts section { min-width: 0; }
+.statistics-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 2rem; margin-top: 2rem; }
+.statistics-page details { min-width: 0; }
+.statistics-page summary { cursor: pointer; color: var(--emerald); padding: .65rem 0; }
+.statistics-page summary h2 { display: inline; margin: 0; }
+.statistics-page details[open] > summary { margin-bottom: .5rem; }
+.statistics-page summary:hover { background: #edf2ef; }
+.statistics-page summary:focus-visible { outline: 2px solid var(--emerald); outline-offset: 3px; }
 .chart-frame { position: relative; height: 260px; background: #fff; padding: .75rem; }
 .factor-chart-frame { height: 320px; margin: 1rem 0; }
 .cost-summary { border-top: 1px solid #cdd6d2; }
