@@ -1,6 +1,11 @@
 "use strict";
 
 Object.assign(TRANSLATIONS.en, {
+    stats_clear_saved: "Clear saved data", stats_saved: "Saved on this device.",
+    stats_restored: "{name} · {count} trips restored from this device · {skipped} invalid rows skipped on import.",
+    stats_save_failed: "Could not save this upload on this device. It is available for this session only; any previously saved data remains unchanged.",
+    stats_restore_failed: "Saved trip data could not be loaded. Upload a CSV to replace it, or clear the saved data.",
+    stats_clear_failed: "Could not clear saved trip data. Your data remains unchanged.",
     stats_factors: "Consumption by factor", stats_factor: "Factor", stats_end_hour: "Trip-end time of day",
     stats_fuel_use: "Fuel use", stats_all_trips: "All trips", stats_no_fuel: "No fuel used", stats_with_fuel: "Fuel used",
     stats_electric_coverage: "km with electric data", stats_fuel_coverage: "km with fuel data",
@@ -25,6 +30,11 @@ Object.assign(TRANSLATIONS.en, {
     stats_fuel_note: "{value} l estimated", stats_days_note: "{value} km/active day", stats_known_distance: "Of distance with recorded fuel use"
 });
 Object.assign(TRANSLATIONS.hu, {
+    stats_clear_saved: "Mentett adatok törlése", stats_saved: "Mentve ezen az eszközön.",
+    stats_restored: "{name} · {count} utazás visszaállítva erről az eszközről · {skipped} hibás sor kihagyva az importáláskor.",
+    stats_save_failed: "A feltöltés nem menthető ezen az eszközön. Csak ebben a munkamenetben érhető el; a korábban mentett adatok változatlanok.",
+    stats_restore_failed: "A mentett utazási adatok nem tölthetők be. Tölts fel CSV-t a cseréhez, vagy töröld a mentett adatokat.",
+    stats_clear_failed: "A mentett adatok nem törölhetők. Az adatok változatlanok.",
     stats_factors: "Fogyasztás tényezők szerint", stats_factor: "Tényező", stats_end_hour: "Utazás végének napszaka",
     stats_fuel_use: "Benzinhasználat", stats_all_trips: "Összes utazás", stats_no_fuel: "Benzin nélkül", stats_with_fuel: "Benzinhasználattal",
     stats_electric_coverage: "km elektromos adattal", stats_fuel_coverage: "km üzemanyag-adattal",
@@ -66,6 +76,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const from = find("date-from");
     const to = find("date-to");
     const status = find("upload-status");
+    const storageStatus = find("storage-status");
+    const clearSaved = find("clear-saved-trips");
+    const storageKey = "myskodabb.tripStatistics.v1";
+    delete status.dataset.i18n;
     let trips = [];
     let filtered = [];
     let matchingCount = 0;
@@ -217,6 +231,28 @@ document.addEventListener("DOMContentLoaded", () => {
         renderTrips();
     }
 
+    function showDataset(dataset, restored = false) {
+        trips = dataset.trips;
+        from.value = trips.at(-1).day;
+        to.value = trips[0].day;
+        status.classList.remove("error");
+        status.textContent = t(restored ? "stats_restored" : "stats_loaded", { name: dataset.name, count: trips.length, skipped: dataset.skipped });
+        find("statistics-results").hidden = false;
+        clearSaved.hidden = false;
+        render();
+    }
+
+    function saveDataset(dataset) {
+        storageStatus.classList.remove("error");
+        try {
+            localStorage.setItem(storageKey, TripStatistics.serializeTrips(dataset.name, dataset));
+            storageStatus.textContent = t("stats_saved");
+        } catch {
+            storageStatus.classList.add("error");
+            storageStatus.textContent = t("stats_save_failed");
+        }
+    }
+
     input.addEventListener("change", async () => {
         const file = input.files[0];
         if (!file) return;
@@ -227,18 +263,13 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             if (file.size > 10 * 1024 * 1024 || !/\.csv$/i.test(file.name)) throw new Error("file");
             const parsed = TripStatistics.readTrips(await file.text(), Papa);
-            trips = parsed.trips;
-            from.value = trips[trips.length - 1].day;
-            to.value = trips[0].day;
-            status.textContent = t("stats_loaded", { name: file.name, count: trips.length, skipped: parsed.skipped });
-            find("statistics-results").hidden = false;
-            render();
+            const dataset = { name: file.name, ...parsed };
+            showDataset(dataset);
+            saveDataset(dataset);
         } catch (error) {
             status.classList.add("error");
             status.textContent = t(`stats_error_${["columns", "malformed", "empty"].includes(error.message) ? error.message : "file"}`);
-            trips = [];
-            charts.forEach(instance => instance.destroy());
-            charts = [];
+            find("statistics-results").hidden = !trips.length;
         } finally {
             input.disabled = false;
             input.value = "";
@@ -255,4 +286,37 @@ document.addEventListener("DOMContentLoaded", () => {
     find("next-page").setAttribute("aria-label", t("stats_next"));
     find("previous-page").addEventListener("click", () => { if (page > 0) { page--; renderTrips(); } });
     find("next-page").addEventListener("click", () => { if ((page + 1) * pageSize < matchingCount) { page++; renderTrips(); } });
+    clearSaved.addEventListener("click", () => {
+        try {
+            localStorage.removeItem(storageKey);
+        } catch {
+            storageStatus.classList.add("error");
+            storageStatus.textContent = t("stats_clear_failed");
+            return;
+        }
+        trips = [];
+        filtered = [];
+        charts.forEach(instance => instance.destroy());
+        charts = [];
+        factorChart = null;
+        find("statistics-results").hidden = true;
+        clearSaved.hidden = true;
+        status.classList.remove("error");
+        status.textContent = t("stats_empty");
+        storageStatus.classList.remove("error");
+        storageStatus.textContent = "";
+        from.value = "";
+        to.value = "";
+    });
+    try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved !== null) {
+            showDataset(TripStatistics.deserializeTrips(saved), true);
+            storageStatus.textContent = t("stats_saved");
+        }
+    } catch {
+        storageStatus.classList.add("error");
+        storageStatus.textContent = t("stats_restore_failed");
+        clearSaved.hidden = false;
+    }
 });

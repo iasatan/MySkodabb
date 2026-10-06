@@ -24,6 +24,8 @@
         <input id="csv-file" type="file" accept=".csv,text/csv" aria-describedby="upload-status" />
     </div>
     <output id="upload-status" class="note" aria-live="polite" data-i18n="stats_empty">No file selected.</output>
+    <output id="storage-status" class="note" aria-live="polite"></output>
+    <button type="button" id="clear-saved-trips" class="link-btn" data-i18n="stats_clear_saved" hidden>Clear saved data</button>
     <section id="statistics-results" hidden>
         <div class="statistics-filters">
             <div class="field"><label for="date-from" data-i18n="stats_from">From</label><input id="date-from" type="date" /></div>

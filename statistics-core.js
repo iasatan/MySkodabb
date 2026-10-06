@@ -141,7 +141,39 @@
         return result;
     }
 
-    const api = { readTrips, summarize, monthly, dateKey, consumptionByFactor };
+    function serializeTrips(name, parsed) {
+        const trips = parsed.trips.map(trip => {
+            const date = trip.date;
+            const localDate = `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+            return [localDate, trip.distance, trip.minutes, trip.speed, trip.electric, trip.fuel, trip.cost, trip.currency];
+        });
+        return JSON.stringify({ version: 1, name, skipped: parsed.skipped, trips });
+    }
+
+    function restoreTrip(values) {
+        if (!Array.isArray(values) || values.length !== 8) throw new Error("snapshot");
+        const [dateText, distance, minutes, speed, electric, fuel, cost, currency] = values;
+        const date = tripDate(dateText);
+        const required = [distance, minutes];
+        const optional = [speed, fuel, cost];
+        if (!date || !required.every(value => Number.isFinite(value) && value >= 0) ||
+            !optional.every(value => value === null || (Number.isFinite(value) && value >= 0)) ||
+            !(electric === null || Number.isFinite(electric)) || typeof currency !== "string" ||
+            (cost !== null && !currency.trim())) throw new Error("snapshot");
+        return { date, day: dateKey(date), distance, minutes, speed, electric, fuel, cost, currency };
+    }
+
+    function deserializeTrips(text) {
+        const snapshot = JSON.parse(text);
+        if (snapshot?.version !== 1 || typeof snapshot.name !== "string" ||
+            !Number.isInteger(snapshot.skipped) || snapshot.skipped < 0 ||
+            !Array.isArray(snapshot.trips) || !snapshot.trips.length) throw new Error("snapshot");
+        const trips = snapshot.trips.map(restoreTrip);
+        trips.sort((first, second) => second.date - first.date);
+        return { name: snapshot.name, skipped: snapshot.skipped, trips };
+    }
+
+    const api = { readTrips, summarize, monthly, dateKey, consumptionByFactor, serializeTrips, deserializeTrips };
     if (typeof module !== "undefined" && module.exports) module.exports = api;
     else root.TripStatistics = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
