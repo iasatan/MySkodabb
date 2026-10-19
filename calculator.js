@@ -189,6 +189,10 @@ async function loadCarConsumption() {
             fuelRange: vehicle.fuelRangeKm === null ? "?" : num(vehicle.fuelRangeKm),
             fuelConsumption: num(fuelLitresPer100Km)
         });
+        if (result.consumptionStorageError) {
+            consumptionHint.classList.add("error");
+            consumptionHint.textContent += ` ${t(result.consumptionStorageError)}`;
+        }
     } catch (error) {
         consumptionSourceInput.value = "settings";
         carConsumption = null;

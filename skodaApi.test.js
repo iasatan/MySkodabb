@@ -97,3 +97,68 @@ test("missing-credentials warning and demo notice follow the selected language",
     assert.match(context.t("credentials_missing"), /Hiányzik az API kulcs/);
     assert.match(context.t("demo_notice"), /Demó mód/);
 });
+
+test("live consumption readings persist once per cached response with independent measurements", async () => {
+    const { context, storage } = app({ apiKey: "key", vin: "TMBJJ7NE0J0123456" });
+    const fetchedAt = Date.now();
+    storage.set("skoda-utility-vehicle-cache", JSON.stringify({ vin: "TMBJJ7NE0J0123456", fetchedAt,
+        data: { vehicle: { charging: { status: { battery: { stateOfChargeInPercent: 50, remainingCruisingRangeInKm: 80 } } },
+            fuelStatus: { primaryEngineRange: { currentFuelLevelInPercent: 40, remainingRangeInKm: 300 } } } } }));
+    await context.fetchVehicle();
+    await context.fetchVehicle();
+    let readings = context.loadConsumptionReadings();
+    assert.equal(readings.length, 1);
+    assert.equal(readings[0].electric, 25.7 * 50 / 80);
+    assert.equal(readings[0].fuel, 6);
+    assert.equal(readings[0].fetchedAt, fetchedAt);
+    const cached = JSON.parse(storage.get("skoda-utility-vehicle-cache"));
+    cached.fetchedAt++;
+    delete cached.data.vehicle.fuelStatus;
+    storage.set("skoda-utility-vehicle-cache", JSON.stringify(cached));
+    await context.fetchVehicle();
+    readings = context.loadConsumptionReadings();
+    assert.equal(readings.length, 2);
+    assert.equal(readings[0].fuel, null);
+    assert.equal(readings[0].electric, 25.7 * 50 / 80);
+});
+
+test("demo data never enters consumption history and corrupt history is preserved", async () => {
+    const { context, storage } = app();
+    await context.fetchVehicle();
+    assert.equal(storage.has("myskodabb.consumption.v1"), false);
+    storage.set("myskodabb.consumption.v1", "broken");
+    assert.throws(() => context.loadConsumptionReadings());
+    context.saveSkodaSettings({ apiKey: "key", vin: "TMBJJ7NE0J0123456" });
+    storage.set("skoda-utility-vehicle-cache", JSON.stringify({ vin: "TMBJJ7NE0J0123456", fetchedAt: Date.now(),
+        data: { vehicle: { charging: { status: { battery: { stateOfChargeInPercent: 50, remainingCruisingRangeInKm: 80 } } } } } }));
+    const result = await context.fetchVehicle();
+    assert.equal(result.consumptionStorageError, "consumption_save_failed");
+    assert.equal(storage.get("myskodabb.consumption.v1"), "broken");
+});
+
+test("storage-full failures report a warning without losing cached vehicle data or previous readings", async () => {
+    const { context, storage } = app({ apiKey: "key", vin: "TMBJJ7NE0J0123456" });
+    const previous = JSON.stringify({ version: 1, readings: [] });
+    storage.set("myskodabb.consumption.v1", previous);
+    storage.set("skoda-utility-vehicle-cache", JSON.stringify({ vin: "TMBJJ7NE0J0123456", fetchedAt: Date.now(),
+        data: { vehicle: { charging: { status: { battery: { stateOfChargeInPercent: 50, remainingCruisingRangeInKm: 80 } } } } } }));
+    context.localStorage.setItem = () => { throw new Error("QuotaExceededError"); };
+    const result = await context.fetchVehicle();
+    assert.equal(result.fromCache, true);
+    assert.equal(context.summarizeVehicle(result.data).stateOfCharge, 50);
+    assert.equal(result.consumptionStorageError, "consumption_save_failed");
+    assert.equal(storage.get("myskodabb.consumption.v1"), previous);
+});
+
+test("consumption history rejects malformed schemas and does not invent readings for missing ranges", async () => {
+    const { context, storage } = app({ apiKey: "key", vin: "TMBJJ7NE0J0123456" });
+    for (const value of [{ version: 2, readings: [] }, { version: 1, readings: [null] },
+        { version: 1, readings: [{ vin: "invalid", fetchedAt: Date.now() }] }]) {
+        storage.set("myskodabb.consumption.v1", JSON.stringify(value));
+        assert.throws(() => context.loadConsumptionReadings());
+    }
+    storage.delete("myskodabb.consumption.v1");
+    await context.fetchVehicle();
+    assert.equal(context.loadConsumptionReadings().length, 0);
+    assert.equal(storage.has("myskodabb.consumption.v1"), false);
+});

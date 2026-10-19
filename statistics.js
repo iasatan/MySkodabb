@@ -119,6 +119,64 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     const costs = summary => Object.entries(summary.costs).map(([currency, value]) => money(value.total, currency)).join(" + ") || "—";
 
+    let readingPage = 0;
+    let readingChart = null;
+    function renderReadings() {
+        const readingStatus = find("reading-status");
+        find("reading-rows").replaceChildren();
+        if (readingChart) readingChart.destroy();
+        readingChart = null;
+        find("reading-chart-frame").hidden = true;
+        find("previous-readings").disabled = true;
+        find("next-readings").disabled = true;
+        find("reading-page-status").textContent = "";
+        try {
+            const start = find("reading-from").value;
+            const end = find("reading-to").value;
+            if (start && end && start > end) throw new Error("range");
+            const readings = loadConsumptionReadings().filter(reading => {
+                const day = TripStatistics.dateKey(new Date(reading.fetchedAt));
+                return (!start || day >= start) && (!end || day <= end);
+            }).sort((first, second) => second.fetchedAt - first.fetchedAt);
+            readingPage = Math.min(readingPage, Math.max(0, Math.ceil(readings.length / pageSize) - 1));
+            readingStatus.classList.remove("error");
+            readingStatus.textContent = t(readings.length ? "consumption_history_count" : "consumption_history_empty", { count: readings.length });
+            for (const reading of readings.slice(readingPage * pageSize, (readingPage + 1) * pageSize)) {
+                row(find("reading-rows"), [new Date(reading.fetchedAt).toLocaleString(getLocale()), reading.vin,
+                    number(reading.odometerKm), number(reading.electric), number(reading.fuel)]);
+            }
+            find("reading-page-status").textContent = t("stats_page", { start: readings.length ? readingPage * pageSize + 1 : 0,
+                end: Math.min((readingPage + 1) * pageSize, readings.length), count: readings.length });
+            find("previous-readings").disabled = readingPage === 0;
+            find("next-readings").disabled = (readingPage + 1) * pageSize >= readings.length;
+            if (!readings.length) return;
+            find("reading-chart-frame").hidden = false;
+            const chronological = readings.slice().reverse();
+            const vins = [...new Set(chronological.map(reading => reading.vin))];
+            readingChart = new Chart(find("reading-chart"), {
+                type: "line", data: {
+                    labels: chronological.map(reading => new Date(reading.fetchedAt).toLocaleString(getLocale())),
+                    datasets: vins.flatMap(vin => [
+                        { label: `${vin} kWh/100 km`, data: chronological.map(reading => reading.vin === vin ? reading.electric : null), borderColor: "#138158", yAxisID: "y", spanGaps: true },
+                        { label: `${vin} l/100 km`, data: chronological.map(reading => reading.vin === vin ? reading.fuel : null), borderColor: "#c16c22", yAxisID: "fuel", spanGaps: true }
+                    ])
+                }, options: { responsive: true, maintainAspectRatio: false, animation: false, locale: getLocale(),
+                    scales: { y: { beginAtZero: true, title: { display: true, text: "kWh/100 km" } },
+                        fuel: { position: "right", beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: "l/100 km" } } } }
+            });
+        } catch (error) {
+            readingStatus.classList.add("error");
+            readingStatus.textContent = t(error.message === "range" ? "stats_invalid_range" : "consumption_load_failed");
+        }
+    }
+    ["reading-from", "reading-to"].forEach(id => find(id).addEventListener("change", () => { readingPage = 0; renderReadings(); }));
+    find("reset-reading-dates").addEventListener("click", () => { find("reading-from").value = ""; find("reading-to").value = ""; readingPage = 0; renderReadings(); });
+    find("previous-readings").addEventListener("click", () => { if (readingPage > 0) { readingPage--; renderReadings(); } });
+    find("next-readings").addEventListener("click", () => { readingPage++; renderReadings(); });
+    find("saved-consumption").addEventListener("toggle", () => { if (readingChart && find("saved-consumption").open) readingChart.resize(); });
+    window.addEventListener("storage", event => { if (event.key === SKODA_CONSUMPTION_KEY || event.key === null) renderReadings(); });
+    renderReadings();
+
     function row(parent, values) {
         const element = document.createElement("tr");
         for (const value of values) {

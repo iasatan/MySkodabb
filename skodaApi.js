@@ -1,6 +1,7 @@
 const SKODA_STORAGE_KEY = "skoda-utility-settings";
 const SKODA_CACHE_KEY = "skoda-utility-vehicle-cache";
 const SKODA_DEMO_CACHE_KEY = "skoda-utility-demo-cache";
+const SKODA_CONSUMPTION_KEY = "myskodabb.consumption.v1";
 // Egy órán belül minden oldal és funkció ugyanazt a járműadat-cache-t használja.
 const SKODA_CACHE_TTL_MS = 60 * 60 * 1000;
 const SKODA_WORKER_BASE_URL = "https://skoda-api-proxy.satanadam.workers.dev";
@@ -120,6 +121,48 @@ function writeCachedVehicle(vin, data, cacheKey = SKODA_CACHE_KEY) {
     const entry = { vin, data, fetchedAt: Date.now() };
     localStorage.setItem(cacheKey, JSON.stringify(entry));
     return entry;
+}
+
+function loadConsumptionReadings() {
+    const raw = localStorage.getItem(SKODA_CONSUMPTION_KEY);
+    if (raw === null) return [];
+    const saved = JSON.parse(raw);
+    const validNumber = value => value === null || (typeof value === "number" && Number.isFinite(value) && value >= 0);
+    if (saved?.version !== 1 || !Array.isArray(saved.readings) || saved.readings.some(reading =>
+        !reading || !isValidVin(reading.vin) || !Number.isFinite(reading.fetchedAt) ||
+        reading.fetchedAt <= 0 || !Number.isFinite(new Date(reading.fetchedAt).getTime()) ||
+        !["electric", "fuel", "odometerKm", "stateOfCharge", "electricRangeKm", "fuelLevelPercent", "fuelRangeKm", "batteryKwh", "fuelTankLitres"].every(key => validNumber(reading[key])) ||
+        (reading.electric === null && reading.fuel === null))) {
+        throw new Error("Invalid consumption history");
+    }
+    return saved.readings;
+}
+
+function saveConsumptionReading(entry, settings) {
+    const vehicle = summarizeVehicle(entry.data);
+    const percent = value => value !== null && value >= 0 && value <= 100;
+    const electric = percent(vehicle.stateOfCharge) && vehicle.electricRangeKm > 0
+        ? settings.batteryKwh * vehicle.stateOfCharge / vehicle.electricRangeKm : null;
+    const fuel = percent(vehicle.fuelLevelPercent) && vehicle.fuelRangeKm > 0
+        ? settings.fuelTankLitres * vehicle.fuelLevelPercent / vehicle.fuelRangeKm : null;
+    if (electric === null && fuel === null) return;
+    const readings = loadConsumptionReadings();
+    if (readings.some(reading => reading.vin === settings.vin && reading.fetchedAt === entry.fetchedAt)) return;
+    readings.push({ vin: settings.vin, fetchedAt: entry.fetchedAt, electric, fuel,
+        odometerKm: vehicle.odometerKm, stateOfCharge: vehicle.stateOfCharge,
+        electricRangeKm: vehicle.electricRangeKm, fuelLevelPercent: vehicle.fuelLevelPercent,
+        fuelRangeKm: vehicle.fuelRangeKm, batteryKwh: settings.batteryKwh, fuelTankLitres: settings.fuelTankLitres });
+    readings.sort((first, second) => second.fetchedAt - first.fetchedAt);
+    localStorage.setItem(SKODA_CONSUMPTION_KEY, JSON.stringify({ version: 1, readings }));
+}
+
+function recordConsumption(entry, settings) {
+    try {
+        saveConsumptionReading(entry, settings);
+        return null;
+    } catch {
+        return "consumption_save_failed";
+    }
 }
 
 function isDemoMode(settings = loadSkodaSettings()) {
@@ -249,7 +292,8 @@ async function fetchVehicle({ forceRefresh = false, cachedOnly = false } = {}) {
 
     const cached = readCachedVehicle(settings.vin);
     if (cached) {
-        return { data: cached.data, fetchedAt: cached.fetchedAt, fromCache: true };
+        return { data: cached.data, fetchedAt: cached.fetchedAt, fromCache: true,
+            consumptionStorageError: recordConsumption(cached, settings) };
     }
 
     if (cachedOnly) {
@@ -268,6 +312,7 @@ async function fetchVehicle({ forceRefresh = false, cachedOnly = false } = {}) {
         data,
         fetchedAt: entry.fetchedAt,
         fromCache: false,
+        consumptionStorageError: recordConsumption(entry, settings),
         keyExpiresAt: response.headers.get("X-API-Key-Expires-At"),
         remainingRequests: response.headers.get("RateLimit-Remaining")
     };

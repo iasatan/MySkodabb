@@ -75,6 +75,15 @@
 
     <section id="settings-status" class="result" hidden></section>
 
+    <section aria-labelledby="consumption-data-title">
+        <h2 id="consumption-data-title" data-i18n="consumption_history_title">Saved car consumption estimates</h2>
+        <p id="consumption-data-status" class="note" aria-live="polite"></p>
+        <div class="actions">
+            <button class="btn" type="button" id="export-consumption" data-i18n="consumption_export">Export consumption data (JSON)</button>
+            <button class="btn ghost danger" type="button" id="clear-consumption" data-i18n="consumption_clear">Clear saved car consumption</button>
+        </div>
+    </section>
+
     <section class="panel assumptions">
         <h2 data-i18n="good_to_know_title">Jó tudni</h2>
         <ul>
@@ -97,6 +106,7 @@
 <script src="skodaApi.js"></script>
 <script src="i18n.js"></script>
 <script src="header.js"></script>
+<script src="statistics-core.js"></script>
 <script src="settings.js"></script>
 </body>
 </html>

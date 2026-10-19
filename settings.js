@@ -113,3 +113,49 @@ document.getElementById("clear-btn").addEventListener("click", () => {
     homeAddressInput.value = "";
     showStatus(t("settings_cleared"), "ok");
 });
+
+const consumptionDataStatus = document.getElementById("consumption-data-status");
+function renderConsumptionDataStatus() {
+    try {
+        const readings = loadConsumptionReadings();
+        consumptionDataStatus.classList.remove("error");
+        consumptionDataStatus.textContent = t(readings.length ? "consumption_history_count" : "consumption_history_empty", { count: readings.length });
+    } catch {
+        consumptionDataStatus.classList.add("error");
+        consumptionDataStatus.textContent = t("consumption_load_failed");
+    }
+}
+renderConsumptionDataStatus();
+
+document.getElementById("export-consumption").addEventListener("click", () => {
+    let url;
+    try {
+        const readings = loadConsumptionReadings();
+        const savedTrips = localStorage.getItem("myskodabb.tripStatistics.v1");
+        if (savedTrips !== null) TripStatistics.deserializeTrips(savedTrips);
+        const data = { version: 1, exportedAt: new Date().toISOString(), readings,
+            tripStatistics: savedTrips === null ? null : JSON.parse(savedTrips) };
+        url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `myskodabb-consumption-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        showStatus(t("consumption_exported"), "ok");
+    } catch {
+        showStatus(t("consumption_export_failed"), "error");
+    } finally {
+        if (url) setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+});
+
+document.getElementById("clear-consumption").addEventListener("click", () => {
+    try {
+        localStorage.removeItem(SKODA_CONSUMPTION_KEY);
+        renderConsumptionDataStatus();
+        showStatus(t("consumption_cleared"), "ok");
+    } catch {
+        showStatus(t("consumption_clear_failed"), "error");
+    }
+});

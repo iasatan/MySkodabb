@@ -21,6 +21,20 @@
 </header>
 <main class="page statistics-page">
     <div class="section-head"><h1 data-i18n="stats_title">Trip statistics</h1></div>
+    <details id="saved-consumption" class="statistics-section" open>
+        <summary><h2 data-i18n="consumption_history_title">Saved car consumption estimates</h2></summary>
+        <div class="statistics-filters">
+            <div class="field"><label for="reading-from" data-i18n="stats_from">From</label><input id="reading-from" type="date" /></div>
+            <div class="field"><label for="reading-to" data-i18n="stats_to">To</label><input id="reading-to" type="date" /></div>
+            <button type="button" id="reset-reading-dates" class="link-btn" data-i18n="stats_reset">All dates</button>
+        </div>
+        <output id="reading-status" class="note" aria-live="polite"></output>
+        <div id="reading-chart-frame" class="chart-frame" hidden><canvas id="reading-chart" role="img" data-i18n-aria="consumption_history_title"></canvas></div>
+        <section class="table-scroll" tabindex="0" data-i18n-aria="consumption_history_title">
+            <table><thead><tr><th scope="col" data-i18n="consumption_recorded_at">Fetched at</th><th scope="col">VIN</th><th scope="col" data-i18n="card_odometer">Odometer</th><th scope="col">kWh/100 km</th><th scope="col">l/100 km</th></tr></thead><tbody id="reading-rows"></tbody></table>
+        </section>
+        <div class="table-pagination"><button type="button" id="previous-readings" class="link-btn" data-i18n-aria="stats_previous">&larr;</button><span id="reading-page-status" class="hint" aria-live="polite"></span><button type="button" id="next-readings" class="link-btn" data-i18n-aria="stats_next">&rarr;</button></div>
+    </details>
     <div class="upload-row field">
         <label for="csv-file" data-i18n="stats_upload">Upload trip CSV</label>
         <input id="csv-file" type="file" accept=".csv,text/csv" aria-describedby="upload-status" />

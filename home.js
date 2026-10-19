@@ -113,6 +113,10 @@ function render(summary, meta) {
     const missing = summary.errors ? t("hint_missing", { errors: summary.errors }) : "";
     vehicleHint.className = "hint";
     vehicleHint.textContent = t("hint_data", { source, time: timeFormat().format(meta.fetchedAt) }) + missing;
+    if (meta.consumptionStorageError) {
+        vehicleHint.classList.add("error");
+        vehicleHint.textContent += ` ${t(meta.consumptionStorageError)}`;
+    }
 }
 
 async function loadVehicle(forceRefresh) {
