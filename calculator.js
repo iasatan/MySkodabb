@@ -104,7 +104,10 @@ async function loadBattery(forceRefresh) {
 }
 
 refreshDataBtn.addEventListener("click", () => loadBattery(true));
-window.addEventListener("DOMContentLoaded", () => loadBattery(false));
+window.addEventListener("DOMContentLoaded", async () => {
+    await loadBattery(false);
+    if (consumptionSourceInput.value === "car") await loadCarConsumption();
+});
 
 let carConsumption = null;
 
