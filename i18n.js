@@ -12,6 +12,9 @@ const TRANSLATIONS = {
         footer_disclaimer: "Nem hivatalos, rajongói segédoldal. Škoda Auto a.s. védjegyei a jogtulajdonosé.",
         loading: "Betöltés…",
         refresh: "Frissítés",
+        credentials_missing: "Hiányzik az API kulcs vagy a VIN. Töltsd ki a Beállítások oldalon.",
+        demo_notice: "Demó mód: véletlenszerű mintaadatok. A vezérlés csak szimuláció.",
+        source_demo: "demó módból",
 
         home_title: "Az autóm",
         map_title: "Hol parkol",
@@ -177,6 +180,9 @@ const TRANSLATIONS = {
         footer_disclaimer: "Unofficial fan-made helper site. Škoda Auto a.s. trademarks belong to their owner.",
         loading: "Loading…",
         refresh: "Refresh",
+        credentials_missing: "The API key or VIN is missing. Enter them on the Settings page.",
+        demo_notice: "Demo mode: random sample data. Controls are simulated only.",
+        source_demo: "from demo mode",
 
         home_title: "My car",
         map_title: "Parking location",

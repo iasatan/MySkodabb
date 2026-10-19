@@ -109,7 +109,7 @@ function render(summary, meta) {
 
     renderSpecs(summary);
 
-    const source = meta.fromCache ? t("source_cache") : t("source_fresh");
+    const source = meta.demo ? t("source_demo") : meta.fromCache ? t("source_cache") : t("source_fresh");
     const missing = summary.errors ? t("hint_missing", { errors: summary.errors }) : "";
     vehicleHint.className = "hint";
     vehicleHint.textContent = t("hint_data", { source, time: timeFormat().format(meta.fetchedAt) }) + missing;

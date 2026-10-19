@@ -1,6 +1,17 @@
 const navToggle = document.querySelector(".nav-toggle");
 const primaryNav = document.querySelector("#primary-nav");
 
+if (isDemoMode()) {
+    const notice = document.createElement("p");
+    notice.className = "hint demo-notice";
+    notice.setAttribute("role", "status");
+    const settingsLink = document.createElement("a");
+    settingsLink.href = "settings.html";
+    settingsLink.textContent = t("credentials_missing");
+    notice.append(t("demo_notice") + " ", settingsLink);
+    (document.querySelector("main .page") || document.querySelector("main"))?.prepend(notice);
+}
+
 if (navToggle && primaryNav) {
     navToggle.addEventListener("click", () => {
         const isOpen = primaryNav.classList.toggle("is-open");

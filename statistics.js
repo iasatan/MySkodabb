@@ -2,6 +2,7 @@
 
 Object.assign(TRANSLATIONS.en, {
     stats_summary: "Summary",
+    stats_demo_loaded: "Demo statistics · {count} sample trips · Past six months.",
     stats_clear_saved: "Clear saved data", stats_saved: "Saved on this device.",
     stats_restored: "{name} · {count} trips restored from this device · {skipped} invalid rows skipped on import.",
     stats_save_failed: "Could not save this upload on this device. It is available for this session only; any previously saved data remains unchanged.",
@@ -32,6 +33,7 @@ Object.assign(TRANSLATIONS.en, {
 });
 Object.assign(TRANSLATIONS.hu, {
     stats_summary: "Összesítő",
+    stats_demo_loaded: "Demó statisztikák · {count} mintautazás · Az elmúlt hat hónap.",
     stats_clear_saved: "Mentett adatok törlése", stats_saved: "Mentve ezen az eszközön.",
     stats_restored: "{name} · {count} utazás visszaállítva erről az eszközről · {skipped} hibás sor kihagyva az importáláskor.",
     stats_save_failed: "A feltöltés nem menthető ezen az eszközön. Csak ebben a munkamenetben érhető el; a korábban mentett adatok változatlanok.",
@@ -258,9 +260,10 @@ document.addEventListener("DOMContentLoaded", () => {
         from.value = trips.at(-1).day;
         to.value = trips[0].day;
         status.classList.remove("error");
-        status.textContent = t(restored ? "stats_restored" : "stats_loaded", { name: dataset.name, count: trips.length, skipped: dataset.skipped });
+        const importedStatus = restored ? "stats_restored" : "stats_loaded";
+        status.textContent = t(dataset.demo ? "stats_demo_loaded" : importedStatus, { name: dataset.name, count: trips.length, skipped: dataset.skipped });
         find("statistics-results").hidden = false;
-        clearSaved.hidden = false;
+        clearSaved.hidden = Boolean(dataset.demo);
         render();
     }
 
@@ -329,12 +332,15 @@ document.addEventListener("DOMContentLoaded", () => {
         storageStatus.textContent = "";
         from.value = "";
         to.value = "";
+        if (isDemoMode()) showDataset(TripStatistics.createDemoTrips());
     });
     try {
         const saved = localStorage.getItem(storageKey);
         if (saved !== null) {
             showDataset(TripStatistics.deserializeTrips(saved), true);
             storageStatus.textContent = t("stats_saved");
+        } else if (isDemoMode()) {
+            showDataset(TripStatistics.createDemoTrips());
         }
     } catch {
         storageStatus.classList.add("error");

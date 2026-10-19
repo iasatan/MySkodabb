@@ -1,5 +1,6 @@
 const SKODA_STORAGE_KEY = "skoda-utility-settings";
 const SKODA_CACHE_KEY = "skoda-utility-vehicle-cache";
+const SKODA_DEMO_CACHE_KEY = "skoda-utility-demo-cache";
 // Egy órán belül minden oldal és funkció ugyanazt a járműadat-cache-t használja.
 const SKODA_CACHE_TTL_MS = 60 * 60 * 1000;
 const SKODA_WORKER_BASE_URL = "https://skoda-api-proxy.satanadam.workers.dev";
@@ -100,11 +101,12 @@ function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer
 function clearSkodaSettings() {
     localStorage.removeItem(SKODA_STORAGE_KEY);
     localStorage.removeItem(SKODA_CACHE_KEY);
+    localStorage.removeItem(SKODA_DEMO_CACHE_KEY);
 }
 
-function readCachedVehicle(vin) {
+function readCachedVehicle(vin, cacheKey = SKODA_CACHE_KEY) {
     try {
-        const cached = JSON.parse(localStorage.getItem(SKODA_CACHE_KEY) || "null");
+        const cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
         if (!cached || cached.vin !== vin) {
             return null;
         }
@@ -114,10 +116,59 @@ function readCachedVehicle(vin) {
     }
 }
 
-function writeCachedVehicle(vin, data) {
+function writeCachedVehicle(vin, data, cacheKey = SKODA_CACHE_KEY) {
     const entry = { vin, data, fetchedAt: Date.now() };
-    localStorage.setItem(SKODA_CACHE_KEY, JSON.stringify(entry));
+    localStorage.setItem(cacheKey, JSON.stringify(entry));
     return entry;
+}
+
+function isDemoMode(settings = loadSkodaSettings()) {
+    return !settings.apiKey || !settings.vin;
+}
+
+function fetchDemoVehicle({ forceRefresh = false } = {}) {
+    const cached = readCachedVehicle("DEMO", SKODA_DEMO_CACHE_KEY);
+    if (cached && !forceRefresh) {
+        return { ...cached, fromCache: true, demo: true };
+    }
+
+    const settings = loadSkodaSettings();
+    const randomInteger = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const stateOfCharge = randomInteger(20, 90);
+    const fuelLevel = randomInteger(25, 95);
+    const data = {
+        vehicle: {
+            name: "Škoda Superb iV (Demo)",
+            licensePlate: "DEMO-001",
+            vin: "DEMO",
+            status: { overall: { doorsLocked: "YES", lights: "OFF" } },
+            odometer: { odometerInKm: randomInteger(10000, 80000) },
+            fuelStatus: {
+                primaryEngineRange: {
+                    currentFuelLevelInPercent: fuelLevel,
+                    remainingRangeInKm: Math.round(settings.fuelTankLitres * fuelLevel / settings.fuelLitresPer100Km)
+                }
+            },
+            charging: {
+                status: {
+                    state: "READY_FOR_CHARGING",
+                    battery: {
+                        stateOfChargeInPercent: stateOfCharge,
+                        remainingCruisingRangeInKm: Math.round(settings.batteryKwh * stateOfCharge / settings.evKwhPer100Km)
+                    }
+                },
+                settings: { targetStateOfChargeInPercent: 80 }
+            },
+            airConditioning: { state: "OFF" },
+            parkingPosition: {
+                latitude: 47.4979 + randomInteger(-20, 20) / 10000,
+                longitude: 19.0402 + randomInteger(-20, 20) / 10000,
+                carCapturedTimestamp: new Date().toISOString()
+            }
+        }
+    };
+    const entry = writeCachedVehicle("DEMO", data, SKODA_DEMO_CACHE_KEY);
+    return { ...entry, fromCache: false, demo: true };
 }
 
 function isValidVin(vin) {
@@ -189,8 +240,8 @@ async function requestVehicle({ apiKey, vin, baseUrl, keyInQuery }) {
 async function fetchVehicle({ forceRefresh = false, cachedOnly = false } = {}) {
     const settings = loadSkodaSettings();
 
-    if (!settings.apiKey || !settings.vin) {
-        throw new Error("Hiányzik az API kulcs vagy a VIN. Töltsd ki a Beállítások oldalon.");
+    if (isDemoMode(settings)) {
+        return fetchDemoVehicle({ forceRefresh: forceRefresh && !cachedOnly });
     }
     if (!isValidVin(settings.vin)) {
         throw new Error("A VIN formátuma érvénytelen (17 karakter).");
@@ -279,16 +330,20 @@ async function fetchBatteryPercentage(options) {
 async function setChargingLimit(targetPercent) {
     const settings = loadSkodaSettings();
 
-    if (!settings.apiKey || !settings.vin) {
-        throw new Error("Hiányzik az API kulcs vagy a VIN. Töltsd ki a Beállítások oldalon.");
-    }
-    if (!isValidVin(settings.vin)) {
+    if (!isDemoMode(settings) && !isValidVin(settings.vin)) {
         throw new Error("A VIN formátuma érvénytelen (17 karakter).");
     }
 
     const target = Math.round(targetPercent);
     if (!Number.isFinite(target) || target < 0 || target > 100) {
         throw new Error("A cél töltöttség 0 és 100% között lehet.");
+    }
+
+    if (isDemoMode(settings)) {
+        const { data } = fetchDemoVehicle();
+        data.vehicle.charging.settings.targetStateOfChargeInPercent = target;
+        writeCachedVehicle("DEMO", data, SKODA_DEMO_CACHE_KEY);
+        return target;
     }
 
     const url = new URL(`${settings.baseUrl}/api/v1/vehicles/${encodeURIComponent(settings.vin)}/charging/limit`);
@@ -309,18 +364,13 @@ async function setChargingLimit(targetPercent) {
 async function setAirConditioning(action, configuration) {
     const settings = loadSkodaSettings();
 
-    if (!settings.apiKey || !settings.vin) {
-        throw new Error("Hiányzik az API kulcs vagy a VIN. Töltsd ki a Beállítások oldalon.");
-    }
-    if (!isValidVin(settings.vin)) {
+    if (!isDemoMode(settings) && !isValidVin(settings.vin)) {
         throw new Error("A VIN formátuma érvénytelen (17 karakter).");
     }
     if (action !== "start" && action !== "stop") {
         throw new Error("Érvénytelen klímavezérlési művelet.");
     }
 
-    const url = new URL(`${settings.baseUrl}/api/v1/vehicles/${encodeURIComponent(settings.vin)}/air-conditioning/${action}`);
-    url.searchParams.set("apiKey", settings.apiKey);
     const request = { method: "POST" };
 
     if (action === "start") {
@@ -335,6 +385,18 @@ async function setAirConditioning(action, configuration) {
         });
     }
 
+    if (isDemoMode(settings)) {
+        const { data } = fetchDemoVehicle();
+        data.vehicle.airConditioning = {
+            state: action === "start" ? "ON" : "OFF",
+            ...(action === "start" ? JSON.parse(request.body) : {})
+        };
+        writeCachedVehicle("DEMO", data, SKODA_DEMO_CACHE_KEY);
+        return;
+    }
+
+    const url = new URL(`${settings.baseUrl}/api/v1/vehicles/${encodeURIComponent(settings.vin)}/air-conditioning/${action}`);
+    url.searchParams.set("apiKey", settings.apiKey);
     const response = await fetch(url.toString(), request);
     if (!response.ok) {
         throw await toApiError(response);

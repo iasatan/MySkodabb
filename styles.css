@@ -271,6 +271,14 @@ h1 {
     color: #b3261e;
 }
 
+.demo-notice {
+    margin-bottom: 1rem;
+}
+
+.demo-notice a {
+    color: var(--emerald);
+}
+
 .cards {
     max-width: 980px;
     margin: 0 auto;

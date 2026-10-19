@@ -67,6 +67,26 @@
         return { trips, skipped };
     }
 
+    function createDemoTrips(now = new Date(), random = Math.random) {
+        const trips = [];
+        const distances = [3, 12, 32, 70, 145, 25];
+        const hours = [7, 9, 13, 17, 21];
+        for (let dayOffset = 1; dayOffset <= 180; dayOffset++) {
+            const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOffset,
+                hours[dayOffset % hours.length], Math.floor(random() * 60));
+            const distance = Math.round(distances[dayOffset % distances.length] * (0.8 + random() * 0.4) * 10) / 10;
+            const electricOnly = distance < 50 && dayOffset % 3 !== 0;
+            const electric = Math.round((electricOnly ? 14 + random() * 8 : 3 + random() * 7) * 10) / 10;
+            const fuel = electricOnly ? 0 : Math.round((4 + random() * 3) * 10) / 10;
+            const openRoadSpeed = distance < 60 ? 40 : 75;
+            const speed = Math.round((distance < 20 ? 20 : openRoadSpeed) + random() * 20);
+            const minutes = Math.max(1, Math.round(distance / speed * 60));
+            const cost = Math.round(distance / 100 * (electric * 0.25 + fuel * 1.65) * 100) / 100;
+            trips.push({ date, day: dateKey(date), distance, minutes, speed, electric, fuel, cost, currency: "EUR" });
+        }
+        return { trips, skipped: 0, demo: true };
+    }
+
     function accumulateConsumption(result, trip) {
         if (trip.electric !== null && trip.distance > 0) {
             result.electricEnergy += trip.electric * trip.distance / 100;
@@ -173,7 +193,7 @@
         return { name: snapshot.name, skipped: snapshot.skipped, trips };
     }
 
-    const api = { readTrips, summarize, monthly, dateKey, consumptionByFactor, serializeTrips, deserializeTrips };
+    const api = { readTrips, createDemoTrips, summarize, monthly, dateKey, consumptionByFactor, serializeTrips, deserializeTrips };
     if (typeof module !== "undefined" && module.exports) module.exports = api;
     else root.TripStatistics = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

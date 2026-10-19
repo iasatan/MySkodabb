@@ -3,11 +3,36 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const Papa = require("./vendor/papaparse.min.js");
-const { readTrips, summarize, monthly } = require("./statistics-core.js");
+const { readTrips, createDemoTrips, summarize, monthly, consumptionByFactor, serializeTrips, deserializeTrips } = require("./statistics-core.js");
 
 const headers = ["End of trip", "Mileage in km", "Travel time in minutes", "Average electric consumption in kWh/100km", "Average fuel consumption in l/100km", "Total cost", "Total cost currency"];
 const csv = rows => Papa.unparse({ fields: headers, data: rows });
 const read = rows => readTrips(csv(rows), Papa);
+
+test("demo trips populate recent monthly charts, consumption groups and costs", () => {
+    const now = new Date(2026, 9, 19, 12);
+    const dataset = createDemoTrips(now, () => 0.5);
+    assert.equal(dataset.demo, true);
+    assert.equal(dataset.trips.length, 180);
+    assert.equal(dataset.skipped, 0);
+    for (const [index, trip] of dataset.trips.entries()) {
+        assert.ok(trip.date < now);
+        assert.ok(trip.distance > 0 && trip.minutes > 0 && trip.speed > 0);
+        assert.ok(trip.electric > 0 && trip.fuel >= 0 && trip.cost > 0);
+        if (index) assert.ok(trip.date < dataset.trips[index - 1].date);
+    }
+    const summary = summarize(dataset.trips);
+    assert.ok(summary.electricOnlyDistance > 0 && summary.electricOnlyDistance < summary.distance);
+    assert.equal(summary.costs.EUR.count, 180);
+    assert.ok(monthly(dataset.trips).length >= 6);
+    for (const factor of ["distance", "speed", "duration", "time"]) {
+        assert.ok(consumptionByFactor(dataset.trips, factor).filter(group => group.count > 0).length >= 3);
+    }
+    const restored = deserializeTrips(serializeTrips("demo", dataset));
+    assert.deepEqual(restored.trips, dataset.trips);
+    assert.notEqual(createDemoTrips(now, () => 0).trips[0].distance,
+        createDemoTrips(now, () => 0.9).trips[0].distance);
+});
 
 test("averages are distance-weighted and zero-distance trips still count", () => {
     const { trips } = read([
