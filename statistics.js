@@ -2,6 +2,11 @@
 
 Object.assign(TRANSLATIONS.en, {
     stats_summary: "Summary",
+    stats_import_filters: "CSV upload and date range",
+    stats_import_title: "Import trip statistics",
+    stats_import_question: "Add {name} to the current trips, or replace them?",
+    stats_import_add: "Add to current", stats_import_replace: "Replace current", stats_import_cancel: "Cancel",
+    stats_combined_name: "Combined trips", stats_duplicates_removed: "{count} duplicate entries removed.",
     stats_demo_loaded: "Demo statistics · {count} sample trips · Past six months.",
     stats_clear_saved: "Clear saved data", stats_saved: "Saved on this device.",
     stats_restored: "{name} · {count} trips restored from this device · {skipped} invalid rows skipped on import.",
@@ -33,6 +38,11 @@ Object.assign(TRANSLATIONS.en, {
 });
 Object.assign(TRANSLATIONS.hu, {
     stats_summary: "Összesítő",
+    stats_import_filters: "CSV feltöltés és dátumtartomány",
+    stats_import_title: "Utazási statisztikák importálása",
+    stats_import_question: "Hozzáadod a(z) {name} fájlt a jelenlegi utakhoz, vagy lecseréled őket?",
+    stats_import_add: "Hozzáadás", stats_import_replace: "Jelenlegi cseréje", stats_import_cancel: "Mégse",
+    stats_combined_name: "Egyesített utazások", stats_duplicates_removed: "{count} ismétlődő bejegyzés eltávolítva.",
     stats_demo_loaded: "Demó statisztikák · {count} mintautazás · Az elmúlt hat hónap.",
     stats_clear_saved: "Mentett adatok törlése", stats_saved: "Mentve ezen az eszközön.",
     stats_restored: "{name} · {count} utazás visszaállítva erről az eszközről · {skipped} hibás sor kihagyva az importáláskor.",
@@ -82,8 +92,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const status = find("upload-status");
     const storageStatus = find("storage-status");
     const clearSaved = find("clear-saved-trips");
+    const importChoice = find("import-choice");
     const storageKey = "myskodabb.tripStatistics.v1";
     delete status.dataset.i18n;
+    let currentDataset = null;
     let trips = [];
     let filtered = [];
     let matchingCount = 0;
@@ -91,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let charts = [];
     let factorChart = null;
     const sectionStorageKey = "myskodabb.statisticsSections.v1";
-    const sections = Array.from(document.querySelectorAll("#statistics-results details"));
+    const sections = Array.from(document.querySelectorAll("#statistics-results details, #statistics-controls"));
     const sectionKey = section => section.querySelector("summary [data-i18n]").dataset.i18n;
     try {
         const savedSections = JSON.parse(localStorage.getItem(sectionStorageKey));
@@ -314,13 +326,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function showDataset(dataset, restored = false) {
+        currentDataset = dataset;
         trips = dataset.trips;
         from.value = trips.at(-1).day;
         to.value = trips[0].day;
         status.classList.remove("error");
         const importedStatus = restored ? "stats_restored" : "stats_loaded";
         status.textContent = t(dataset.demo ? "stats_demo_loaded" : importedStatus, { name: dataset.name, count: trips.length, skipped: dataset.skipped });
+        if (dataset.duplicates !== undefined) status.textContent += ` ${t("stats_duplicates_removed", { count: dataset.duplicates })}`;
         find("statistics-results").hidden = false;
+        find("trip-date-filters").hidden = false;
         clearSaved.hidden = Boolean(dataset.demo);
         render();
     }
@@ -339,14 +354,30 @@ document.addEventListener("DOMContentLoaded", () => {
     input.addEventListener("change", async () => {
         const file = input.files[0];
         if (!file) return;
+        const previousStatus = status.textContent;
         status.classList.remove("error");
         status.textContent = t("stats_reading");
-        find("statistics-results").hidden = true;
         input.disabled = true;
         try {
             if (file.size > 10 * 1024 * 1024 || !/\.csv$/i.test(file.name)) throw new Error("file");
             const parsed = TripStatistics.readTrips(await file.text(), Papa);
-            const dataset = { name: file.name, ...parsed };
+            let dataset = { name: file.name, ...parsed };
+            if (currentDataset && !currentDataset.demo) {
+                find("import-choice-question").textContent = t("stats_import_question", { name: file.name });
+                importChoice.returnValue = "cancel";
+                const choice = await new Promise(resolve => {
+                    importChoice.addEventListener("close", () => resolve(importChoice.returnValue), { once: true });
+                    importChoice.showModal();
+                });
+                if (choice !== "add" && choice !== "replace") {
+                    status.textContent = previousStatus;
+                    return;
+                }
+                if (choice === "add") {
+                    dataset = { name: t("stats_combined_name"), skipped: currentDataset.skipped + parsed.skipped,
+                        ...TripStatistics.mergeTrips(trips, parsed.trips) };
+                }
+            }
             showDataset(dataset);
             saveDataset(dataset);
         } catch (error) {
@@ -377,12 +408,14 @@ document.addEventListener("DOMContentLoaded", () => {
             storageStatus.textContent = t("stats_clear_failed");
             return;
         }
+        currentDataset = null;
         trips = [];
         filtered = [];
         charts.forEach(instance => instance.destroy());
         charts = [];
         factorChart = null;
         find("statistics-results").hidden = true;
+        find("trip-date-filters").hidden = true;
         clearSaved.hidden = true;
         status.classList.remove("error");
         status.textContent = t("stats_empty");

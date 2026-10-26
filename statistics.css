@@ -5,6 +5,12 @@
 .statistics-page h2 { color: var(--emerald); font-size: 1.1rem; margin: 0 0 1rem; }
 .upload-row { margin-top: 1.5rem; max-width: 560px; }
 .upload-row input { width: 100%; min-width: 0; background: white; }
+.import-dialog { max-width: 520px; width: calc(100% - 2rem); box-sizing: border-box; padding: 1.5rem; border: 1px solid #cdd6d2; border-radius: 8px; color: var(--ink); background: white; }
+.import-dialog::backdrop { background: rgb(0 0 0 / 40%); }
+.import-dialog h2 { color: var(--emerald); font-size: 1.1rem; margin: 0 0 1rem; }
+.import-dialog p { overflow-wrap: anywhere; }
+.import-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
+.import-actions .btn { white-space: normal; }
 .statistics-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin-top: 1.5rem; }
 .statistics-filters .field { flex: 0 1 200px; min-width: 0; }
 .statistics-filters input { min-width: 0; width: 100%; }

@@ -67,6 +67,23 @@
         return { trips, skipped };
     }
 
+    function mergeTrips(current, incoming) {
+        const seen = new Set();
+        const trips = [];
+        let duplicates = 0;
+        for (const trip of [...current, ...incoming]) {
+            const key = JSON.stringify([trip.date.getTime(), trip.distance, trip.minutes,
+                trip.speed, trip.electric, trip.fuel, trip.cost, trip.currency]);
+            if (seen.has(key)) duplicates++;
+            else {
+                seen.add(key);
+                trips.push(trip);
+            }
+        }
+        trips.sort((first, second) => second.date - first.date);
+        return { trips, duplicates };
+    }
+
     function createDemoTrips(now = new Date(), random = Math.random) {
         const trips = [];
         const distances = [3, 12, 32, 70, 145, 25];
@@ -193,7 +210,7 @@
         return { name: snapshot.name, skipped: snapshot.skipped, trips };
     }
 
-    const api = { readTrips, createDemoTrips, summarize, monthly, dateKey, consumptionByFactor, serializeTrips, deserializeTrips };
+    const api = { readTrips, mergeTrips, createDemoTrips, summarize, monthly, dateKey, consumptionByFactor, serializeTrips, deserializeTrips };
     if (typeof module !== "undefined" && module.exports) module.exports = api;
     else root.TripStatistics = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

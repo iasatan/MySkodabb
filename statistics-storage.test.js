@@ -1,7 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const Papa = require("./vendor/papaparse.min.js");
-const { readTrips, summarize, consumptionByFactor, serializeTrips, deserializeTrips } = require("./statistics-core.js");
+const { readTrips, mergeTrips, summarize, consumptionByFactor, serializeTrips, deserializeTrips } = require("./statistics-core.js");
 
 function dataset() {
     return readTrips(Papa.unparse({
@@ -20,6 +20,38 @@ test("snapshot round-trip restores Dates, missing values, zero costs and negativ
     assert.deepEqual(restored.trips, parsed.trips);
     assert.deepEqual(summarize(restored.trips), summarize(parsed.trips));
     assert.deepEqual(consumptionByFactor(restored.trips, "time"), consumptionByFactor(parsed.trips, "time"));
+});
+
+test("adding trips removes duplicates across and within datasets without mutating inputs", () => {
+    const current = dataset();
+    const incoming = deserializeTrips(serializeTrips("overlap.csv", current));
+    const newer = { ...incoming.trips[0], date: new Date(2026, 9, 3, 12), day: "2026-10-03" };
+    current.trips.push(current.trips[0]);
+    incoming.trips.push(newer, newer);
+    const merged = mergeTrips(current.trips, incoming.trips);
+    assert.equal(merged.duplicates, 4);
+    assert.deepEqual(merged.trips, [newer, ...dataset().trips]);
+    assert.equal(current.trips.length, 3);
+    assert.equal(incoming.trips.length, 4);
+    const restored = deserializeTrips(serializeTrips("merged.csv", { ...merged, skipped: 2 }));
+    assert.deepEqual(restored.trips, merged.trips);
+    assert.equal(restored.skipped, 2);
+    assert.equal(mergeTrips(merged.trips, incoming.trips).trips.length, 3);
+});
+
+test("adding trips preserves distinct records even when trip times overlap", () => {
+    const original = dataset().trips[0];
+    const variants = [
+        { ...original, distance: original.distance + 1 },
+        { ...original, minutes: original.minutes + 1 },
+        { ...original, speed: 0 },
+        { ...original, electric: 0 },
+        { ...original, fuel: 0 },
+        { ...original, cost: 0, currency: "EUR" }
+    ];
+    const merged = mergeTrips([original], variants);
+    assert.equal(merged.trips.length, 7);
+    assert.equal(merged.duplicates, 0);
 });
 
 test("snapshots reject corrupt JSON, unsupported versions and empty datasets", () => {
