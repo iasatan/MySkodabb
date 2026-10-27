@@ -1,6 +1,14 @@
 const navToggle = document.querySelector(".nav-toggle");
 const primaryNav = document.querySelector("#primary-nav");
 
+if (primaryNav && !primaryNav.querySelector('a[href="nearby-chargers.html"]')) {
+    const chargersLink = document.createElement("a");
+    chargersLink.href = "nearby-chargers.html";
+    chargersLink.dataset.i18n = "nav_chargers";
+    chargersLink.textContent = t("nav_chargers");
+    primaryNav.insertBefore(chargersLink, primaryNav.querySelector('a[href="statistics.html"]'));
+}
+
 if (isDemoMode()) {
     const notice = document.createElement("p");
     notice.className = "hint demo-notice";

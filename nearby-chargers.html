@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nearby chargers | MySkodabb</title>
+<link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="nearby-chargers.css" />
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">&#352;KODA</span><span class="brand-sub">Utility</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" data-i18n="nav_menu">Menu</button>
+    <nav id="primary-nav">
+        <a href="index.html" data-i18n="nav_home">Home</a>
+        <a href="climate.html" data-i18n="nav_climate">Climate</a>
+        <a href="calculator.html" data-i18n="nav_calculator">Charging calculator</a>
+        <a href="nearby-chargers.html" class="active" aria-current="page" data-i18n="nav_chargers">Nearby chargers</a>
+        <a href="statistics.html" data-i18n="nav_statistics">Statistics</a>
+        <a href="settings.html" data-i18n="nav_settings">Settings</a>
+    </nav>
+</header>
+<main class="page chargers-page">
+    <div class="section-head">
+        <h1 data-i18n="nav_chargers">Nearby chargers</h1>
+        <div class="link-row">
+            <button type="button" id="refresh-car" class="link-btn" data-i18n="chargers_refresh_car">Refresh car</button>
+            <button type="button" id="refresh-catalog" class="link-btn" data-i18n="chargers_refresh_catalog">Refresh chargers &amp; prices</button>
+        </div>
+    </div>
+    <p id="charger-vehicle-status" class="note" aria-live="polite"></p>
+    <p id="charger-catalog-status" class="hint" aria-live="polite"></p>
+    <output id="charger-warning" class="hint error" aria-live="polite"></output>
+    <form id="charger-filters" class="charger-filters">
+        <div class="field"><label for="charger-radius" data-i18n="chargers_radius">Search radius (km)</label><input id="charger-radius" type="number" min="1" max="300" step="1" value="25" required /></div>
+        <div class="field"><label for="charger-reserve" data-i18n="chargers_reserve">Range reserve (%)</label><input id="charger-reserve" type="number" min="0" max="90" step="1" value="10" required /></div>
+        <div class="field"><label for="charger-connector" data-i18n="chargers_connector">Connector</label><select id="charger-connector"><option value="" data-i18n="chargers_all_connectors">All connectors</option></select></div>
+        <div class="field checkbox"><label><input id="charger-card-only" type="checkbox" /><span data-i18n="chargers_card_only">Card payment only</span></label></div>
+        <button type="submit" id="find-chargers" class="btn" data-i18n="chargers_search">Find chargers</button>
+    </form>
+    <iframe id="charger-map" class="charger-map" title="Car parking position" loading="lazy" referrerpolicy="no-referrer" hidden></iframe>
+    <section class="charger-results" aria-labelledby="charger-results-heading" aria-busy="false">
+        <h2 id="charger-results-heading" data-i18n="chargers_results">Reachable chargers</h2>
+        <output id="charger-search-status" class="note" aria-live="polite"></output>
+        <p class="hint" data-i18n="chargers_method">Estimated driving distance, with your range reserve. Homeward preference uses a geographic corridor, not a planned route. Traffic, terrain and weather can reduce range.</p>
+        <p class="hint" data-i18n="chargers_price_note">Energy tariffs are snapshots, not a total charging quote. Extra fees and subscription terms may apply; verify price and availability with the operator.</p>
+        <div id="charger-list"></div>
+    </section>
+    <p class="note charger-attribution"><a href="https://elmob.hu/otpr" target="_blank" rel="noopener noreferrer">OTPR / elmob.hu</a> &middot; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> / OSRM</p>
+</main>
+<footer class="footer"><p data-i18n="footer_disclaimer">Unofficial enthusiast utility. Trademarks belong to their owners.</p></footer>
+<script src="skodaApi.js"></script>
+<script src="i18n.js"></script>
+<script src="nearby-chargers-core.js"></script>
+<script src="nearby-chargers.js"></script>
+<script src="header.js"></script>
+</body>
+</html>

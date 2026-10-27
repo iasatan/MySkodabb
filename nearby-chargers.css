@@ -1,0 +1,39 @@
+.chargers-page { max-width: 1080px; }
+.chargers-page h1 { font-size: 2rem; }
+.chargers-page .section-head { align-items: center; }
+.chargers-page .link-row { gap: .75rem 1.25rem; }
+.chargers-page output { display: block; }
+.charger-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 1.5rem 0 1rem; padding: 1.25rem 0; border-top: 1px solid #cdd6d2; border-bottom: 1px solid #cdd6d2; align-items: end; }
+.charger-filters input, .charger-filters select { width: 100%; min-width: 0; }
+.charger-filters .checkbox { grid-column: 1 / 3; align-self: center; }
+.charger-filters .btn { margin: 0; border-radius: 6px; }
+.charger-filters .btn:disabled { opacity: .6; cursor: progress; }
+.charger-import { margin: 1rem 0; color: var(--muted); font-size: .85rem; }
+.charger-import summary { cursor: pointer; }
+.charger-import .field { margin-top: .75rem; max-width: 100%; }
+.charger-import input { max-width: 100%; }
+.charger-map { width: 100%; height: 220px; border: 0; display: block; margin: 1.25rem 0; }
+.charger-map[hidden] { display: none; }
+.charger-results h2 { margin: 1.5rem 0 0; color: var(--emerald); font-size: 1.35rem; }
+.charger-results > .hint { margin-top: .5rem; max-width: 95ch; }
+#charger-list { margin-top: 1.25rem; }
+.charger-item { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, .7fr); gap: .75rem 1.5rem; padding: 1.25rem; margin: .75rem 0; border: 1px solid #d5dfda; border-radius: 6px; background: #fff; }
+.charger-item.homeward { border-left: 4px solid var(--emerald); padding-left: calc(1.25rem - 3px); }
+.charger-item h3 { margin: 0 0 .3rem; font-size: 1.1rem; color: var(--emerald); overflow-wrap: anywhere; }
+.charger-item p { margin: .25rem 0; font-size: .88rem; overflow-wrap: anywhere; }
+.charger-item .charger-tags { color: var(--emerald); font-weight: 600; }
+.charger-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem 1rem; margin: 0; }
+.charger-metrics dt { font-size: .78rem; color: var(--muted); }
+.charger-metrics dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.charger-item .charger-fees { grid-column: 1 / -1; color: var(--muted); font-size: .8rem; }
+.charger-item a { color: var(--emerald); font-size: .85rem; }
+.charger-item .link-row { grid-column: 1 / -1; }
+.charger-attribution { border-top: 1px solid #cdd6d2; padding-top: 1rem; font-size: .8rem; }
+.charger-attribution a { color: var(--emerald); }
+@media (max-width: 600px) {
+    .chargers-page h1 { font-size: 1.7rem; }
+    .charger-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .charger-filters .field:nth-child(3), .charger-filters .checkbox, .charger-filters .btn { grid-column: 1 / -1; }
+    .charger-item { grid-template-columns: minmax(0, 1fr); padding: 1rem; }
+    .charger-item.homeward { padding-left: calc(1rem - 3px); }
+}

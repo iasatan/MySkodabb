@@ -35,6 +35,16 @@ export default {
         }
 
         const url = new URL(request.url);
+        if (request.method === "GET" && /^\/chargers\/map-catalog(?:\/delta)?$/.test(url.pathname)) {
+            try {
+                const upstream = await fetch("https://olcsontoltok.hu/api" + url.pathname, {
+                    headers: { "Accept": "application/json" }, redirect: "error"
+                });
+                return withCors(upstream);
+            } catch {
+                return new Response("Charger catalogue unavailable", { status: 502, headers: corsHeaders() });
+            }
+        }
         const apiKey = url.searchParams.get("apiKey");
         if (!apiKey) {
             return new Response("Missing apiKey", { status: 400, headers: corsHeaders() });
