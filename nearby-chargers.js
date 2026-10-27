@@ -27,11 +27,7 @@ async function chargerFetchJson(url) {
 }
 
 async function chargerPublicData(path) {
-    try {
-        return await chargerFetchJson(`https://olcsontoltok.hu/api/chargers/${path}`);
-    } catch {
-        return chargerFetchJson(`${SKODA_WORKER_BASE_URL}/chargers/${path}`);
-    }
+    return chargerFetchJson(`${SKODA_WORKER_BASE_URL}/chargers/${path}`);
 }
 
 function setChargerCatalog(catalog, fetchedAt, source, persist = true) {

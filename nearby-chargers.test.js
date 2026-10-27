@@ -28,7 +28,7 @@ function downloadPage(fetch) {
     return { context, storage };
 }
 
-test("the page downloads the HAR endpoint with GET and stores the fresh response in localStorage", async () => {
+test("the page downloads catalogue and prices through the worker and stores the fresh response in localStorage", async () => {
     const requests = [];
     const source = { ...catalog([station(1)]), version: "live-catalog" };
     const { context, storage } = downloadPage(async (url, options) => {
@@ -37,18 +37,20 @@ test("the page downloads the HAR endpoint with GET and stores the fresh response
             ? { full: true, staticVersion: source.version, changes: [] } : source };
     });
     await context.loadChargerCatalog();
-    assert.equal(requests[0].url, chargers.CATALOG_URL);
+    assert.deepEqual(requests.map(request => request.url), [
+        "https://proxy.test/chargers/map-catalog", "https://proxy.test/chargers/map-catalog/delta"
+    ]);
     assert.equal(requests[0].options.method, "GET");
     assert.equal(requests[0].options.credentials, "omit");
     assert.equal(JSON.parse(storage.get(chargers.CACHE_KEY)).catalog.version, "live-catalog");
     assert.ok(requests.every(request => !request.url.endsWith(".har")));
 });
 
-test("failed live download tries the fixed proxy, never reads the HAR, and never saves archived data", async () => {
+test("failed live download never calls the CORS-blocked upstream or saves archived data", async () => {
     const requests = [];
     const { context, storage } = downloadPage(async url => { requests.push(url); throw new Error("offline"); });
     await context.loadChargerCatalog();
-    assert.deepEqual(requests, [chargers.CATALOG_URL, "https://proxy.test/chargers/map-catalog"]);
+    assert.deepEqual(requests, ["https://proxy.test/chargers/map-catalog"]);
     assert.equal(storage.has(chargers.CACHE_KEY), false);
 });
 
@@ -169,14 +171,31 @@ test("worker proxies only the two fixed public catalogue routes, without API key
         for (const suffix of ["", "/delta"]) {
             const response = await worker.fetch(new Request(`https://proxy.test/chargers/map-catalog${suffix}?apiKey=secret&target=evil`));
             assert.equal(response.status, 200);
-            assert.equal(response.headers.get("Access-Control-Allow-Origin"), "https://iasatan.github.io");
+            assert.equal(response.headers.get("Access-Control-Allow-Origin"), "*");
             assert.equal(requests.at(-1).url, `https://olcsontoltok.hu/api/chargers/map-catalog${suffix}`);
             assert.deepEqual(requests.at(-1).options.headers, { Accept: "application/json" });
+            assert.equal(requests.at(-1).options.redirect, "manual");
         }
+        const preflight = await worker.fetch(new Request("https://proxy.test/chargers/map-catalog", {
+            method: "OPTIONS", headers: { Origin: "http://127.0.0.1:8097" }
+        }));
+        assert.equal(preflight.status, 204);
+        assert.equal(preflight.headers.get("Access-Control-Allow-Origin"), "*");
+        const privateResponse = await worker.fetch(new Request("https://proxy.test/api/v1/vehicles/TMBJJ7NE0J0123456"));
+        assert.equal(privateResponse.headers.get("Access-Control-Allow-Origin"), "https://iasatan.github.io");
+        const privatePreflight = await worker.fetch(new Request("https://proxy.test/api/v1/vehicles/TMBJJ7NE0J0123456", { method: "OPTIONS" }));
+        assert.equal(privatePreflight.headers.get("Access-Control-Allow-Origin"), "https://iasatan.github.io");
         assert.equal((await worker.fetch(new Request("https://proxy.test/chargers/other"))).status, 400);
         assert.equal((await worker.fetch(new Request("https://proxy.test/chargers/map-catalog", { method: "POST" }))).status, 400);
         assert.equal(requests.length, 2);
+        globalThis.fetch = async () => new Response(null, { status: 302, headers: { Location: "https://olcsontoltok.hu/" } });
+        const redirected = await worker.fetch(new Request("https://proxy.test/chargers/map-catalog"));
+        assert.equal(redirected.status, 502);
+        assert.equal(redirected.headers.get("Location"), null);
+        assert.equal(redirected.headers.get("Access-Control-Allow-Origin"), "*");
         globalThis.fetch = async () => { throw new Error("offline"); };
-        assert.equal((await worker.fetch(new Request("https://proxy.test/chargers/map-catalog"))).status, 502);
+        const failed = await worker.fetch(new Request("https://proxy.test/chargers/map-catalog"));
+        assert.equal(failed.status, 502);
+        assert.equal(failed.headers.get("Access-Control-Allow-Origin"), "*");
     } finally { globalThis.fetch = originalFetch; }
 });

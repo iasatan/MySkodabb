@@ -9,9 +9,9 @@ const VEHICLE_PATH = /^\/api\/v1\/vehicles\/[A-HJ-NPR-Z0-9]{17}$/;
 const CHARGING_LIMIT_PATH = /^\/api\/v1\/vehicles\/[A-HJ-NPR-Z0-9]{17}\/charging\/limit$/;
 const AIR_CONDITIONING_PATH = /^\/api\/v1\/vehicles\/[A-HJ-NPR-Z0-9]{17}\/air-conditioning\/(start|stop)$/;
 
-function corsHeaders() {
+function corsHeaders(origin = ALLOWED_ORIGIN) {
     return {
-        "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+        "Access-Control-Allow-Origin": origin,
         "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Max-Age": "86400",
@@ -20,30 +20,38 @@ function corsHeaders() {
     };
 }
 
-function withCors(upstream) {
+function withCors(upstream, origin = ALLOWED_ORIGIN) {
     const headers = new Headers(upstream.headers);
-    for (const [key, value] of Object.entries(corsHeaders())) {
+    for (const [key, value] of Object.entries(corsHeaders(origin))) {
         headers.set(key, value);
     }
     return new Response(upstream.body, { status: upstream.status, headers });
 }
 
+async function fetchChargerCatalog(pathname) {
+    try {
+        const upstream = await fetch("https://olcsontoltok.hu/api" + pathname, {
+            headers: { "Accept": "application/json" }, redirect: "manual"
+        });
+        if (upstream.status >= 300 && upstream.status < 400) {
+            return new Response("Charger catalogue redirected unexpectedly", { status: 502, headers: corsHeaders("*") });
+        }
+        return withCors(upstream, "*");
+    } catch {
+        return new Response("Charger catalogue unavailable", { status: 502, headers: corsHeaders("*") });
+    }
+}
+
 export default {
     async fetch(request) {
+        const url = new URL(request.url);
+        const publicCatalogue = /^\/chargers\/map-catalog(?:\/delta)?$/.test(url.pathname);
         if (request.method === "OPTIONS") {
-            return new Response(null, { status: 204, headers: corsHeaders() });
+            return new Response(null, { status: 204, headers: corsHeaders(publicCatalogue ? "*" : ALLOWED_ORIGIN) });
         }
 
-        const url = new URL(request.url);
-        if (request.method === "GET" && /^\/chargers\/map-catalog(?:\/delta)?$/.test(url.pathname)) {
-            try {
-                const upstream = await fetch("https://olcsontoltok.hu/api" + url.pathname, {
-                    headers: { "Accept": "application/json" }, redirect: "error"
-                });
-                return withCors(upstream);
-            } catch {
-                return new Response("Charger catalogue unavailable", { status: 502, headers: corsHeaders() });
-            }
+        if (request.method === "GET" && publicCatalogue) {
+            return fetchChargerCatalog(url.pathname);
         }
         const apiKey = url.searchParams.get("apiKey");
         if (!apiKey) {
