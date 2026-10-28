@@ -1,7 +1,7 @@
 const chargerElements = Object.fromEntries([
     "refresh-car", "refresh-catalog", "charger-vehicle-status", "charger-catalog-status", "charger-warning",
     "charger-filters", "charger-address", "charger-radius", "charger-reserve", "charger-connector", "charger-card-only", "charger-hybrid-only", "find-chargers",
-    "charger-map", "charger-search-status", "charger-list", "charger-results-heading", "charger-method"
+    "charger-map", "charger-search-status", "charger-list", "charger-results-heading", "charger-method", "charger-hybrid-label"
 ].map(id => [id, document.getElementById(id)]));
 let chargerCatalog = null;
 let chargerVehicle = null;
@@ -78,6 +78,15 @@ async function loadChargerCatalog(forceRefresh = false) {
     }
 }
 
+function renderChargerHybridLabel() {
+    const settings = loadSkodaSettings();
+    const cost = NearbyChargers.hybridCostPerKm(chargerVehicle, settings);
+    const price = cost === null ? t("chargers_price_unknown") : `${new Intl.NumberFormat(getLocale(), {
+        style: "currency", currency: settings.currency, currencyDisplay: "narrowSymbol", maximumFractionDigits: 2
+    }).format(cost)}/km`;
+    chargerElements["charger-hybrid-label"].textContent = `${t("chargers_hybrid_only")} (${price})`;
+}
+
 async function loadChargerVehicle(forceRefresh = false) {
     try {
         const result = await fetchVehicle({ forceRefresh });
@@ -85,6 +94,7 @@ async function loadChargerVehicle(forceRefresh = false) {
         chargerVehicleMeta = result;
     } catch (error) {
         chargerVehicle = null;
+        renderChargerHybridLabel();
         chargerMessage("charger-vehicle-status", error.message, true);
         return;
     }
@@ -96,6 +106,7 @@ async function loadChargerVehicle(forceRefresh = false) {
         date: chargerDate(chargerVehicleMeta.fetchedAt),
         source: t(chargerVehicleMeta.demo ? "source_demo" : vehicleSource)
     }));
+    renderChargerHybridLabel();
     renderChargerMap([]);
 }
 

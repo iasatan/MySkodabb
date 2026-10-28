@@ -79,6 +79,25 @@ test("charger cards offer Google Maps and Apple Maps driving directions from the
     assert.equal(new URL(list.children[0].children[3].children[0].href).searchParams.get("origin"), "47.5,20");
 });
 
+test("hybrid cost per kilometre uses car fuel consumption or settings and renders in the filter label", () => {
+    const settings = { fuelTankLitres: 40, fuelLitresPer100Km: 6, fuelPrice: 600, currency: "HUF" };
+    const vehicle = { fuelLevelPercent: 50, fuelRangeKm: 400 };
+    assert.equal(chargers.hybridCostPerKm(vehicle, settings), 30);
+    assert.equal(chargers.hybridCostPerKm(null, settings), 36);
+    assert.equal(chargers.hybridCostPerKm({ ...vehicle, fuelRangeKm: 0 }, settings), 36);
+    assert.equal(chargers.hybridCostPerKm(vehicle, { ...settings, fuelPrice: null }), null);
+    assert.equal(chargers.hybridCostPerKm(vehicle, { ...settings, fuelPrice: 0 }), 0);
+    const { context } = downloadPage();
+    context.loadSkodaSettings = () => settings;
+    context.vehicle = vehicle;
+    vm.runInContext("chargerVehicle = vehicle; renderChargerHybridLabel()", context);
+    const expected = new Intl.NumberFormat("en", { style: "currency", currency: "HUF", currencyDisplay: "narrowSymbol", maximumFractionDigits: 2 }).format(30);
+    assert.equal(vm.runInContext('chargerElements["charger-hybrid-label"].textContent', context), `chargers_hybrid_only (${expected}/km)`);
+    context.loadSkodaSettings = () => ({ ...settings, fuelPrice: null });
+    context.renderChargerHybridLabel();
+    assert.equal(vm.runInContext('chargerElements["charger-hybrid-label"].textContent', context), "chargers_hybrid_only (chargers_price_unknown)");
+});
+
 test("hybrid price limit uses car consumption when available and settings independently otherwise", () => {
     const settings = { batteryKwh: 20, fuelTankLitres: 40, evKwhPer100Km: 18, fuelLitresPer100Km: 6, fuelPrice: 600, currency: "HUF" };
     const vehicle = { stateOfCharge: 50, electricRangeKm: 50, fuelLevelPercent: 50, fuelRangeKm: 400 };
