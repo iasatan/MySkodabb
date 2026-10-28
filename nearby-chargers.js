@@ -185,12 +185,17 @@ function renderChargerResults(chargers) {
         directions.textContent = t("chargers_directions");
         directions.target = "_blank";
         directions.rel = "noopener noreferrer";
+        const appleDirections = document.createElement("a");
+        appleDirections.href = `https://maps.apple.com/?saddr=${origin.latitude},${origin.longitude}&daddr=${charger.lat},${charger.lng}&dirflg=d`;
+        appleDirections.textContent = t("chargers_directions_apple");
+        appleDirections.target = "_blank";
+        appleDirections.rel = "noopener noreferrer";
         const details = document.createElement("a");
         details.href = `https://elmob.hu/otpr?charger=${encodeURIComponent(charger.id)}`;
         details.textContent = t("chargers_details");
         details.target = "_blank";
         details.rel = "noopener noreferrer";
-        links.append(directions, details);
+        links.append(directions, appleDirections, details);
         article.append(identity, metrics, fees, links);
         list.append(article);
     }

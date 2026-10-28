@@ -28,6 +28,47 @@ function downloadPage(fetch) {
     return { context, storage };
 }
 
+test("charger cards offer Google Maps and Apple Maps driving directions from the car", () => {
+    const { context } = downloadPage();
+    const element = () => ({
+        children: [],
+        append(...children) { this.children.push(...children); },
+        replaceChildren() { this.children = []; }
+    });
+    const list = element();
+    context.document.createElement = element;
+    context.list = list;
+    context.car = car;
+    context.charger = station(1, 19.05, { drivingKm: 5, pricePerKwh: null });
+    context.formatNumber = String;
+    vm.runInContext(`
+        chargerElements["charger-list"] = list;
+        chargerCatalog = { currency: "HUF" };
+        chargerVehicle = { parkingPosition: car, electricRangeKm: 100 };
+        renderChargerResults([charger]);
+    `, context);
+    const links = list.children[0].children[3].children;
+    assert.equal(links.length, 3);
+    const [google, apple, details] = links;
+    const googleUrl = new URL(google.href);
+    assert.equal(googleUrl.origin, "https://www.google.com");
+    assert.equal(googleUrl.searchParams.get("origin"), "47.5,19");
+    assert.equal(googleUrl.searchParams.get("destination"), "47.5,19.05");
+    assert.equal(googleUrl.searchParams.get("travelmode"), "driving");
+    const appleUrl = new URL(apple.href);
+    assert.equal(appleUrl.origin, "https://maps.apple.com");
+    assert.equal(appleUrl.searchParams.get("saddr"), "47.5,19");
+    assert.equal(appleUrl.searchParams.get("daddr"), "47.5,19.05");
+    assert.equal(appleUrl.searchParams.get("dirflg"), "d");
+    assert.equal(google.textContent, "chargers_directions");
+    assert.equal(apple.textContent, "chargers_directions_apple");
+    for (const link of [google, apple]) {
+        assert.equal(link.target, "_blank");
+        assert.equal(link.rel, "noopener noreferrer");
+    }
+    assert.equal(details.href, "https://elmob.hu/otpr?charger=1");
+});
+
 test("the page downloads catalogue and prices through the worker and stores the fresh response in localStorage", async () => {
     const requests = [];
     const source = { ...catalog([station(1)]), version: "live-catalog" };

@@ -414,7 +414,8 @@ Object.assign(TRANSLATIONS.en, {
     chargers_idle_fee: "Idle fee (check terms)",
     chargers_parking_fee: "Parking fee (check terms)",
     chargers_fees_unknown: "Extra fees unknown; check operator terms.",
-    chargers_directions: "Directions from car",
+    chargers_directions: "Google Maps directions",
+    chargers_directions_apple: "Apple Maps directions",
     chargers_details: "Prices & charger details"
 });
 
@@ -469,7 +470,8 @@ Object.assign(TRANSLATIONS.hu, {
     chargers_idle_fee: "Várakozási díj (feltétel szerint)",
     chargers_parking_fee: "Parkolási díj (feltétel szerint)",
     chargers_fees_unknown: "A további díjak ismeretlenek; ellenőrizd a szolgáltatói feltételeket.",
-    chargers_directions: "Útvonal az autótól",
+    chargers_directions: "Útvonal Google Maps-szel",
+    chargers_directions_apple: "Útvonal Apple Maps-szel",
     chargers_details: "Árak és töltőrészletek"
 });
 
