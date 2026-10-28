@@ -38,6 +38,12 @@ function supportedOrDefault(value, list, defaultValue) {
     return list.some((item) => item.code === value) ? value : defaultValue;
 }
 
+function optionalNonnegativeNumber(value) {
+    if (value === null || value === undefined || String(value).trim() === "") return null;
+    const number = Number(value);
+    return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
 function loadSkodaSettings() {
     try {
         const raw = localStorage.getItem(SKODA_STORAGE_KEY);
@@ -52,6 +58,7 @@ function loadSkodaSettings() {
             fuelLitresPer100Km: positiveNumberOrDefault(parsed.fuelLitresPer100Km, DEFAULT_FUEL_L_PER_100_KM),
             fuelTankLitres: positiveNumberOrDefault(parsed.fuelTankLitres, DEFAULT_FUEL_TANK_LITRES),
             evKwhPer100Km: positiveNumberOrDefault(parsed.evKwhPer100Km, DEFAULT_EV_KWH_PER_100_KM),
+            fuelPrice: optionalNonnegativeNumber(parsed.fuelPrice),
             language: supportedOrDefault(parsed.language, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE),
             currency: supportedOrDefault(parsed.currency, SUPPORTED_CURRENCIES, DEFAULT_CURRENCY)
         };
@@ -66,6 +73,7 @@ function loadSkodaSettings() {
             fuelLitresPer100Km: DEFAULT_FUEL_L_PER_100_KM,
             fuelTankLitres: DEFAULT_FUEL_TANK_LITRES,
             evKwhPer100Km: DEFAULT_EV_KWH_PER_100_KM,
+            fuelPrice: null,
             language: DEFAULT_LANGUAGE,
             currency: DEFAULT_CURRENCY
         };
@@ -80,7 +88,7 @@ function trimTrailingSlashes(value) {
     return value.slice(0, end);
 }
 
-function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer100Km, fuelTankLitres, evKwhPer100Km, language, currency }) {
+function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer100Km, fuelTankLitres, evKwhPer100Km, fuelPrice, language, currency }) {
     localStorage.setItem(
         SKODA_STORAGE_KEY,
         JSON.stringify({
@@ -93,6 +101,7 @@ function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer
             fuelLitresPer100Km: positiveNumberOrDefault(fuelLitresPer100Km, DEFAULT_FUEL_L_PER_100_KM),
             fuelTankLitres: positiveNumberOrDefault(fuelTankLitres, DEFAULT_FUEL_TANK_LITRES),
             evKwhPer100Km: positiveNumberOrDefault(evKwhPer100Km, DEFAULT_EV_KWH_PER_100_KM),
+            fuelPrice: optionalNonnegativeNumber(fuelPrice),
             language: supportedOrDefault(language, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE),
             currency: supportedOrDefault(currency, SUPPORTED_CURRENCIES, DEFAULT_CURRENCY)
         })

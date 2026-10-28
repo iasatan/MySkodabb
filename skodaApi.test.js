@@ -26,6 +26,16 @@ function app(settings = {}, random = Math.random) {
     return { context, storage, requests };
 }
 
+test("fuel price settings round trip without treating missing or invalid values as free fuel", () => {
+    const { context } = app();
+    assert.equal(context.loadSkodaSettings().fuelPrice, null);
+    for (const [fuelPrice, expected] of [["710.5", 710.5], [0, 0], ["", null], [null, null], [-1, null], ["invalid", null]]) {
+        context.saveSkodaSettings({ fuelPrice, currency: "EUR" });
+        assert.equal(context.loadSkodaSettings().fuelPrice, expected);
+        assert.equal(context.loadSkodaSettings().currency, "EUR");
+    }
+});
+
 test("missing either or both credentials enables random, usable demo data without network requests", async () => {
     for (const settings of [{}, { apiKey: "key" }, { vin: "TMBJJ7NE0J0123456" }]) {
         const { context, requests } = app(settings);

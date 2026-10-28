@@ -69,6 +69,58 @@ test("charger cards offer Google Maps and Apple Maps driving directions from the
     assert.equal(details.href, "https://elmob.hu/otpr?charger=1");
 });
 
+test("hybrid price limit uses car consumption when available and settings independently otherwise", () => {
+    const settings = { batteryKwh: 20, fuelTankLitres: 40, evKwhPer100Km: 18, fuelLitresPer100Km: 6, fuelPrice: 600, currency: "HUF" };
+    const vehicle = { stateOfCharge: 50, electricRangeKm: 50, fuelLevelPercent: 50, fuelRangeKm: 400 };
+    const source = catalog([]);
+    assert.equal(chargers.hybridPriceLimit(vehicle, settings, source), 135);
+    assert.equal(chargers.hybridPriceLimit(null, settings, source), 180);
+    assert.equal(chargers.hybridPriceLimit({ ...vehicle, stateOfCharge: 0 }, settings, source), 150);
+    assert.equal(chargers.hybridPriceLimit({ ...vehicle, fuelRangeKm: null }, settings, source), 162);
+    assert.equal(chargers.hybridPriceLimit({ ...vehicle, fuelLevelPercent: 101 }, settings, source), 162);
+    assert.equal(chargers.hybridPriceLimit(vehicle, { ...settings, fuelPrice: 0 }, source), 0);
+    assert.equal(chargers.hybridPriceLimit(vehicle, { ...settings, fuelPrice: null }, source), null);
+    assert.equal(chargers.hybridPriceLimit(null, { ...settings, evKwhPer100Km: 0 }, source), null);
+    const euro = { ...settings, fuelPrice: 1.5, currency: "EUR" };
+    assert.equal(chargers.hybridPriceLimit(vehicle, euro, { ...source, ratesFromHuf: { EUR: 0.0025 } }), 135);
+    assert.equal(chargers.hybridPriceLimit(vehicle, euro, source), null);
+});
+
+test("hybrid filter excludes expensive and unknown tariffs before routing, keeps equal prices and can be turned off", async () => {
+    const { context } = downloadPage();
+    const routed = [];
+    const results = [];
+    context.loadSkodaSettings = () => ({ evKwhPer100Km: 18, fuelLitresPer100Km: 6, fuelPrice: 600, currency: "HUF" });
+    context.chargerHomePosition = async () => null;
+    context.renderChargerMap = () => {};
+    context.renderChargerResults = chargers => results.push(chargers);
+    context.chargerDrivingDistances = async (position, candidates) => {
+        routed.push(Array.from(candidates, charger => charger.id));
+        return candidates.map(() => 5);
+    };
+    context.source = catalog([station(1, 19.05, { pricePerKwh: 0 }), station(2, 19.05, { pricePerKwh: 180 }),
+        station(3, 19.05, { pricePerKwh: 181 }), station(4)]);
+    context.car = car;
+    vm.runInContext(`
+        chargerCatalog = source;
+        chargerVehicle = { parkingPosition: car, electricRangeKm: 100 };
+        chargerElements["charger-radius"].value = 25;
+        chargerElements["charger-reserve"].value = 10;
+        chargerElements["charger-hybrid-only"].checked = true;
+    `, context);
+    await context.findNearbyChargers();
+    assert.deepEqual(routed[0], [1, 2]);
+    assert.deepEqual(Array.from(results[0], charger => charger.id), [1, 2]);
+    vm.runInContext('chargerElements["charger-hybrid-only"].checked = false', context);
+    await context.findNearbyChargers();
+    assert.deepEqual(routed[1], [1, 2, 3, 4]);
+    context.loadSkodaSettings = () => ({ evKwhPer100Km: 18, fuelLitresPer100Km: 6, fuelPrice: null, currency: "HUF" });
+    vm.runInContext('chargerElements["charger-hybrid-only"].checked = true', context);
+    await context.findNearbyChargers();
+    assert.equal(routed.length, 2);
+    assert.equal(vm.runInContext('chargerElements["charger-search-status"].textContent', context), "chargers_hybrid_unavailable");
+});
+
 test("charger prices use a relative green-yellow-red gradient and neutral unknown prices", () => {
     const { context } = downloadPage();
     const colors = prices => Array.from(context.chargerPriceColors(prices.map(pricePerKwh => ({ pricePerKwh }))));

@@ -42,6 +42,21 @@
         return validNumber(source) && source > 0 && validNumber(target) && target > 0 ? amount / source * target : null;
     }
 
+    function hybridPriceLimit(vehicle, settings, catalog) {
+        const positive = value => validNumber(value) && value > 0;
+        const percent = value => positive(value) && value <= 100;
+        const electricEstimate = percent(vehicle?.stateOfCharge) && positive(vehicle?.electricRangeKm) && positive(settings.batteryKwh)
+            ? settings.batteryKwh * vehicle.stateOfCharge / vehicle.electricRangeKm : null;
+        const fuelEstimate = percent(vehicle?.fuelLevelPercent) && positive(vehicle?.fuelRangeKm) && positive(settings.fuelTankLitres)
+            ? settings.fuelTankLitres * vehicle.fuelLevelPercent / vehicle.fuelRangeKm : null;
+        const electricConsumption = positive(electricEstimate) ? electricEstimate : settings.evKwhPer100Km;
+        const fuelConsumption = positive(fuelEstimate) ? fuelEstimate : settings.fuelLitresPer100Km;
+        const fuelPrice = convertPrice(settings.fuelPrice, settings.currency, catalog);
+        if (fuelPrice === null || !positive(electricConsumption) || !positive(fuelConsumption)) return null;
+        const limit = fuelPrice * fuelConsumption * 0.9 / electricConsumption;
+        return nonnegative(limit);
+    }
+
     function mergePricing(catalog, delta, fetchedAt = Date.now()) {
         if (delta?.full !== true || !Array.isArray(delta.changes) ||
             delta.staticVersion !== catalog.version) throw new Error("chargers_invalid_pricing");
@@ -128,7 +143,7 @@
     }
 
     const api = { CACHE_KEY, CATALOG_URL, validPosition, distanceKm, normalizeCatalog, mergePricing, readCache, saveCache,
-        candidates, shortlist, rankReachable };
+        candidates, shortlist, rankReachable, hybridPriceLimit };
     if (typeof module !== "undefined" && module.exports) module.exports = api;
     else root.NearbyChargers = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

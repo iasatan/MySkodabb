@@ -1,6 +1,6 @@
 const chargerElements = Object.fromEntries([
     "refresh-car", "refresh-catalog", "charger-vehicle-status", "charger-catalog-status", "charger-warning",
-    "charger-filters", "charger-radius", "charger-reserve", "charger-connector", "charger-card-only", "find-chargers",
+    "charger-filters", "charger-radius", "charger-reserve", "charger-connector", "charger-card-only", "charger-hybrid-only", "find-chargers",
     "charger-map", "charger-search-status", "charger-list"
 ].map(id => [id, document.getElementById(id)]));
 let chargerCatalog = null;
@@ -283,6 +283,17 @@ async function findNearbyChargers() {
         chargerMessage("charger-search-status", t("consumption_missing_ev"), true);
         return;
     }
+    let hybridLimit = null;
+    let hybridStatus = "";
+    if (chargerElements["charger-hybrid-only"].checked) {
+        hybridLimit = NearbyChargers.hybridPriceLimit(chargerVehicle, loadSkodaSettings(), chargerCatalog);
+        if (hybridLimit === null) {
+            chargerMessage("charger-search-status", t("chargers_hybrid_unavailable"), true);
+            return;
+        }
+        const price = new Intl.NumberFormat(getLocale(), { style: "currency", currency: chargerCatalog.currency, maximumFractionDigits: 2 }).format(hybridLimit);
+        hybridStatus = ` ${t("chargers_hybrid_limit", { price })}`;
+    }
     chargerMessage("charger-search-status", t("chargers_routing"));
     let home = null;
     let homeWarning = "";
@@ -290,7 +301,9 @@ async function findNearbyChargers() {
     catch (error) { homeWarning = ` ${t("chargers_home_unavailable", { reason: error.message })}`; }
     const nearby = NearbyChargers.candidates(chargerCatalog, chargerVehicle.parkingPosition, home, chargerVehicle.electricRangeKm,
         Number(chargerElements["charger-radius"].value), Number(chargerElements["charger-reserve"].value), chargerElements["charger-connector"].value)
-        .filter(charger => !chargerElements["charger-card-only"].checked || charger.acceptsBankCard);
+        .filter(charger => !chargerElements["charger-card-only"].checked || charger.acceptsBankCard)
+        .filter(charger => hybridLimit === null || typeof charger.pricePerKwh === "number" && Number.isFinite(charger.pricePerKwh) &&
+            charger.pricePerKwh >= 0 && charger.pricePerKwh <= hybridLimit);
     const selected = NearbyChargers.shortlist(nearby);
     try {
         const distances = await chargerDrivingDistances(chargerVehicle.parkingPosition, selected);
@@ -298,7 +311,7 @@ async function findNearbyChargers() {
         renderChargerResults(ranked);
         chargerMessage("charger-search-status", t(ranked.length ? "chargers_found" : "chargers_none", {
             count: ranked.length, checked: selected.length, total: nearby.length
-        }) + homeWarning);
+        }) + hybridStatus + homeWarning);
     } catch {
         chargerMessage("charger-search-status", t("chargers_routing_failed") + homeWarning, true);
     }
@@ -324,6 +337,7 @@ chargerElements["charger-filters"].addEventListener("submit", event => {
     event.preventDefault();
     void chargerAction(findNearbyChargers);
 });
+chargerElements["charger-hybrid-only"].addEventListener("change", () => chargerAction(findNearbyChargers));
 chargerElements["refresh-car"].addEventListener("click", () => chargerAction(async () => {
     await loadChargerVehicle(true);
     await findNearbyChargers();

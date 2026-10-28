@@ -6,6 +6,7 @@ const batteryKwhInput = document.getElementById("batteryKwh");
 const fuelLitresPer100KmInput = document.getElementById("fuelLitresPer100Km");
 const fuelTankLitresInput = document.getElementById("fuelTankLitres");
 const evKwhPer100KmInput = document.getElementById("evKwhPer100Km");
+const fuelPriceInput = document.getElementById("fuelPrice");
 const languageInput = document.getElementById("language");
 const currencyInput = document.getElementById("currency");
 const statusBox = document.getElementById("settings-status");
@@ -29,8 +30,15 @@ batteryKwhInput.value = current.batteryKwh;
 fuelLitresPer100KmInput.value = current.fuelLitresPer100Km;
 fuelTankLitresInput.value = current.fuelTankLitres;
 evKwhPer100KmInput.value = current.evKwhPer100Km;
+fuelPriceInput.value = current.fuelPrice ?? "";
 populateSelect(languageInput, SUPPORTED_LANGUAGES, current.language);
 populateSelect(currencyInput, SUPPORTED_CURRENCIES, current.currency);
+
+function renderFuelPriceLabel() {
+    document.getElementById("settings-fuel-price-label").textContent = t("label_fuelPrice", { unit: `${currencyInput.value}/l` });
+}
+currencyInput.addEventListener("change", renderFuelPriceLabel);
+renderFuelPriceLabel();
 
 function renderGoodToKnow() {
     document.getElementById("good-to-know-1").innerHTML =
@@ -63,6 +71,7 @@ function currentFormValues() {
         fuelLitresPer100Km: fuelLitresPer100KmInput.value,
         fuelTankLitres: fuelTankLitresInput.value,
         evKwhPer100Km: evKwhPer100KmInput.value,
+        fuelPrice: fuelPriceInput.value,
         language: languageInput.value,
         currency: currencyInput.value
     };
@@ -79,6 +88,10 @@ settingsForm.addEventListener("submit", (event) => {
     const consumptionValues = [batteryKwhInput, fuelLitresPer100KmInput, fuelTankLitresInput, evKwhPer100KmInput];
     if (consumptionValues.some((input) => !Number.isFinite(Number(input.value)) || Number(input.value) <= 0)) {
         showStatus(t("consumption_values_invalid"), "error");
+        return;
+    }
+    if (fuelPriceInput.value !== "" && (!Number.isFinite(Number(fuelPriceInput.value)) || Number(fuelPriceInput.value) < 0)) {
+        showStatus(t("error_invalid_inputs"), "error");
         return;
     }
 
@@ -111,6 +124,7 @@ document.getElementById("clear-btn").addEventListener("click", () => {
     apiKeyInput.value = "";
     vinInput.value = "";
     homeAddressInput.value = "";
+    fuelPriceInput.value = "";
     showStatus(t("settings_cleared"), "ok");
 });
 
