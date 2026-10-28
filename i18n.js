@@ -416,6 +416,9 @@ Object.assign(TRANSLATIONS.en, {
     chargers_fees_unknown: "Extra fees unknown; check operator terms.",
     chargers_directions: "Google Maps directions",
     chargers_directions_apple: "Apple Maps directions",
+    chargers_map: "Car and reachable chargers",
+    chargers_map_details: "View charger details",
+    chargers_map_unavailable: "Map unavailable. Charger details and navigation links are still available below.",
     chargers_details: "Prices & charger details"
 });
 
@@ -472,6 +475,9 @@ Object.assign(TRANSLATIONS.hu, {
     chargers_fees_unknown: "A további díjak ismeretlenek; ellenőrizd a szolgáltatói feltételeket.",
     chargers_directions: "Útvonal Google Maps-szel",
     chargers_directions_apple: "Útvonal Apple Maps-szel",
+    chargers_map: "Autó és elérhető töltők",
+    chargers_map_details: "Töltő részletei",
+    chargers_map_unavailable: "A térkép nem érhető el. A töltők adatai és az útvonaltervező hivatkozások alább továbbra is elérhetők.",
     chargers_details: "Árak és töltőrészletek"
 });
 

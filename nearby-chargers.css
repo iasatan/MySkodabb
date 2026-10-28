@@ -12,8 +12,13 @@
 .charger-import summary { cursor: pointer; }
 .charger-import .field { margin-top: .75rem; max-width: 100%; }
 .charger-import input { max-width: 100%; }
-.charger-map { width: 100%; height: 220px; border: 0; display: block; margin: 1.25rem 0; }
+.charger-map { width: 100%; height: 380px; border: 0; display: block; margin: 1.25rem 0; z-index: 0; }
 .charger-map[hidden] { display: none; }
+.charger-map .charger-map-marker { display: grid; place-items: center; width: 32px; height: 32px; border: 2px solid #fff; border-radius: 50%; background: #167547; color: #fff; font: 700 14px/1 sans-serif; box-shadow: 0 1px 5px #0006; }
+.charger-map .charger-map-marker.car { background: #175cb5; }
+.charger-map-price { display: grid; place-items: center; width: 100%; height: 100%; border-radius: inherit; }
+.charger-map .leaflet-popup-content { max-width: 230px; overflow-wrap: anywhere; }
+.charger-map .leaflet-popup-content a { color: var(--emerald); }
 .charger-results h2 { margin: 1.5rem 0 0; color: var(--emerald); font-size: 1.35rem; }
 .charger-results > .hint { margin-top: .5rem; max-width: 95ch; }
 #charger-list { margin-top: 1.25rem; }

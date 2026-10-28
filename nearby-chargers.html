@@ -6,6 +6,7 @@
 <title>Nearby chargers | MySkodabb</title>
 <link rel="stylesheet" href="styles.css" />
 <link rel="stylesheet" href="nearby-chargers.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
 </head>
 <body>
 <header class="topbar">
@@ -38,7 +39,7 @@
         <div class="field checkbox"><label><input id="charger-card-only" type="checkbox" /><span data-i18n="chargers_card_only">Card payment only</span></label></div>
         <button type="submit" id="find-chargers" class="btn" data-i18n="chargers_search">Find chargers</button>
     </form>
-    <iframe id="charger-map" class="charger-map" title="Car parking position" loading="lazy" referrerpolicy="no-referrer" hidden></iframe>
+    <section id="charger-map" class="charger-map" aria-label="Charger map" hidden></section>
     <section class="charger-results" aria-labelledby="charger-results-heading" aria-busy="false">
         <h2 id="charger-results-heading" data-i18n="chargers_results">Reachable chargers</h2>
         <output id="charger-search-status" class="note" aria-live="polite"></output>
@@ -52,6 +53,7 @@
 <script src="skodaApi.js"></script>
 <script src="i18n.js"></script>
 <script src="nearby-chargers-core.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
 <script src="nearby-chargers.js"></script>
 <script src="header.js"></script>
 </body>

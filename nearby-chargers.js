@@ -8,6 +8,9 @@ let chargerVehicle = null;
 let chargerVehicleMeta = null;
 let chargerHome = null;
 let chargerBusy = false;
+let chargerMap = null;
+let chargerMapMarkers = null;
+let chargerMapPositions = [];
 let chargerStorage = null;
 try { chargerStorage = localStorage; } catch {}
 
@@ -91,12 +94,77 @@ async function loadChargerVehicle(forceRefresh = false) {
         date: chargerDate(chargerVehicleMeta.fetchedAt),
         source: t(chargerVehicleMeta.demo ? "source_demo" : vehicleSource)
     }));
-    if (NearbyChargers.validPosition(vehicle.parkingPosition)) {
-        const { latitude, longitude } = vehicle.parkingPosition;
-        chargerElements["charger-map"].src = `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - .025},${latitude - .012},${longitude + .025},${latitude + .012}&layer=mapnik&marker=${latitude},${longitude}`;
-        chargerElements["charger-map"].title = t("map_title");
-        chargerElements["charger-map"].hidden = false;
-    } else chargerElements["charger-map"].hidden = true;
+    renderChargerMap([]);
+}
+
+function fitChargerMap() {
+    if (chargerMapPositions.length > 1) chargerMap.fitBounds(chargerMapPositions, { padding: [32, 32], maxZoom: 14 });
+    else if (chargerMapPositions.length) chargerMap.setView(chargerMapPositions[0], 13);
+}
+
+function chargerPriceColors(chargers) {
+    const validPrice = price => typeof price === "number" && Number.isFinite(price) && price >= 0;
+    const prices = chargers.map(charger => charger.pricePerKwh).filter(validPrice);
+    const minimum = Math.min(...prices);
+    const maximum = Math.max(...prices);
+    return chargers.map(charger => {
+        if (!validPrice(charger.pricePerKwh)) return "#68716e";
+        const fraction = maximum > minimum ? (charger.pricePerKwh - minimum) / (maximum - minimum) : 0;
+        return `hsl(${120 * (1 - fraction)}, 75%, 30%)`;
+    });
+}
+
+function renderChargerMap(chargers) {
+    const container = chargerElements["charger-map"];
+    const origin = chargerVehicle?.parkingPosition;
+    if (!NearbyChargers.validPosition(origin) || typeof L === "undefined") {
+        container.hidden = true;
+        if (typeof L === "undefined") chargerMessage("charger-warning", t("chargers_map_unavailable"), true);
+        return;
+    }
+    container.hidden = false;
+    container.setAttribute("aria-label", t("chargers_map"));
+    if (!chargerMap) {
+        chargerMap = L.map(container, { scrollWheelZoom: false });
+        chargerMap.on("resize", fitChargerMap);
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(chargerMap);
+        chargerMapMarkers = L.layerGroup().addTo(chargerMap);
+    }
+    chargerMapMarkers.clearLayers();
+    const carPosition = [origin.latitude, origin.longitude];
+    const carLabel = document.createElement("span");
+    carLabel.textContent = t("map_title");
+    L.marker(carPosition, {
+        title: t("map_title"),
+        icon: L.divIcon({ className: "charger-map-marker car", html: "&#9670;", iconSize: [32, 32], iconAnchor: [16, 16] })
+    }).bindPopup(carLabel).addTo(chargerMapMarkers);
+    const positions = [carPosition];
+    const priceColors = chargerPriceColors(chargers);
+    chargers.forEach((charger, index) => {
+        const position = [charger.lat, charger.lng];
+        positions.push(position);
+        const popup = document.createElement("div");
+        const name = document.createElement("strong");
+        name.textContent = charger.name;
+        const details = document.createElement("a");
+        details.href = `#charger-result-${index + 1}`;
+        details.textContent = t("chargers_map_details");
+        popup.append(name, document.createElement("br"), details);
+        const badge = document.createElement("span");
+        badge.className = "charger-map-price";
+        badge.textContent = String(index + 1);
+        badge.style.backgroundColor = priceColors[index];
+        L.marker(position, {
+            title: charger.name,
+            icon: L.divIcon({ className: "charger-map-marker", html: badge, iconSize: [32, 32], iconAnchor: [16, 16] })
+        }).bindPopup(popup).addTo(chargerMapMarkers);
+    });
+    chargerMapPositions = positions;
+    chargerMap.invalidateSize();
+    fitChargerMap();
 }
 
 async function chargerHomePosition() {
@@ -138,6 +206,7 @@ function renderChargerResults(chargers) {
     const money = value => new Intl.NumberFormat(getLocale(), { style: "currency", currency: chargerCatalog.currency, maximumFractionDigits: 1 }).format(value);
     for (const charger of chargers) {
         const article = document.createElement("article");
+        article.id = `charger-result-${list.children.length + 1}`;
         article.className = `charger-item${charger.towardHome ? " homeward" : ""}`;
         const identity = document.createElement("div");
         const heading = document.createElement("h3");
@@ -199,10 +268,12 @@ function renderChargerResults(chargers) {
         article.append(identity, metrics, fees, links);
         list.append(article);
     }
+    renderChargerMap(chargers);
 }
 
 async function findNearbyChargers() {
     chargerElements["charger-list"].replaceChildren();
+    renderChargerMap([]);
     if (!chargerCatalog || !chargerVehicle) return;
     if (!NearbyChargers.validPosition(chargerVehicle.parkingPosition)) {
         chargerMessage("charger-search-status", t("parking_position_missing"), true);

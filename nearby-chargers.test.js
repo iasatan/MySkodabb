@@ -69,6 +69,82 @@ test("charger cards offer Google Maps and Apple Maps driving directions from the
     assert.equal(details.href, "https://elmob.hu/otpr?charger=1");
 });
 
+test("charger prices use a relative green-yellow-red gradient and neutral unknown prices", () => {
+    const { context } = downloadPage();
+    const colors = prices => Array.from(context.chargerPriceColors(prices.map(pricePerKwh => ({ pricePerKwh }))));
+    assert.deepEqual(colors([0, 100, 200, null]), [
+        "hsl(120, 75%, 30%)", "hsl(60, 75%, 30%)", "hsl(0, 75%, 30%)", "#68716e"
+    ]);
+    assert.deepEqual(colors([200, 125, 100, 175]), [
+        "hsl(0, 75%, 30%)", "hsl(90, 75%, 30%)", "hsl(120, 75%, 30%)", "hsl(30, 75%, 30%)"
+    ]);
+    assert.deepEqual(colors([50, 50]), ["hsl(120, 75%, 30%)", "hsl(120, 75%, 30%)"]);
+    assert.deepEqual(colors([null, undefined, NaN, Infinity, -1, "100"]), Array(6).fill("#68716e"));
+    assert.deepEqual(colors([]), []);
+});
+
+test("the map displays the car and current chargers, reframes results and clears old markers", () => {
+    const { context } = downloadPage();
+    const markers = [];
+    const views = [];
+    const handlers = {};
+    let mapCreations = 0;
+    const map = {
+        on(event, handler) { handlers[event] = handler; },
+        invalidateSize() {},
+        fitBounds(positions, options) { views.push({ positions, options }); },
+        setView(position, zoom) { views.push({ position, zoom }); }
+    };
+    const layer = { addTo() { return this; }, clearLayers() { markers.length = 0; } };
+    context.L = {
+        map() { mapCreations += 1; return map; },
+        tileLayer() { return { addTo() {} }; },
+        layerGroup() { return layer; },
+        divIcon: options => options,
+        marker(position, options) {
+            const marker = {
+                position, options,
+                bindPopup(popup) { this.popup = popup; return this; },
+                addTo() { markers.push(this); return this; }
+            };
+            return marker;
+        }
+    };
+    const container = { setAttribute() {} };
+    context.container = container;
+    context.document.createElement = () => ({ style: {}, children: [], append(...children) { this.children.push(...children); } });
+    context.car = car;
+    context.stations = [station(1, 19.05, { pricePerKwh: 100 }), station(2, 19.1, { name: "<unsafe> & charger", pricePerKwh: 200 })];
+    vm.runInContext(`
+        chargerElements["charger-map"] = container;
+        chargerVehicle = { parkingPosition: car };
+        renderChargerMap(stations);
+    `, context);
+    assert.equal(container.hidden, false);
+    assert.equal(markers.length, 3);
+    assert.equal(markers[0].options.title, "map_title");
+    assert.equal(markers[1].options.title, "Charger 1");
+    assert.equal(markers[1].options.icon.html.textContent, "1");
+    assert.equal(markers[1].options.icon.html.style.backgroundColor, "hsl(120, 75%, 30%)");
+    assert.equal(markers[2].options.icon.html.style.backgroundColor, "hsl(0, 75%, 30%)");
+    assert.equal(markers[2].popup.children[0].textContent, "<unsafe> & charger");
+    assert.equal(markers[2].popup.children[2].href, "#charger-result-2");
+    assert.equal(JSON.stringify(views[0].positions), JSON.stringify([[47.5, 19], [47.5, 19.05], [47.5, 19.1]]));
+    assert.equal(views[0].options.maxZoom, 14);
+    handlers.resize();
+    assert.equal(JSON.stringify(views.at(-1)), JSON.stringify(views[0]));
+    vm.runInContext("renderChargerMap([stations[1]])", context);
+    assert.equal(markers.length, 2);
+    assert.equal(markers[1].options.title, "<unsafe> & charger");
+    assert.equal(markers[1].options.icon.html.style.backgroundColor, "hsl(120, 75%, 30%)");
+    assert.equal(mapCreations, 1);
+    vm.runInContext("renderChargerMap([])", context);
+    assert.equal(markers.length, 1);
+    assert.equal(views.at(-1).zoom, 13);
+    vm.runInContext("chargerVehicle = null; renderChargerMap([])", context);
+    assert.equal(container.hidden, true);
+});
+
 test("the page downloads catalogue and prices through the worker and stores the fresh response in localStorage", async () => {
     const requests = [];
     const source = { ...catalog([station(1)]), version: "live-catalog" };
