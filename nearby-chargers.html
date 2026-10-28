@@ -32,7 +32,10 @@
     <p id="charger-vehicle-status" class="note" aria-live="polite"></p>
     <p id="charger-catalog-status" class="hint" aria-live="polite"></p>
     <output id="charger-warning" class="hint error" aria-live="polite"></output>
+    <details class="charger-filter-section">
+    <summary data-i18n="chargers_filters">Search &amp; filters</summary>
     <form id="charger-filters" class="charger-filters">
+        <div class="field charger-address"><label for="charger-address" data-i18n="chargers_address">Destination address (optional)</label><input id="charger-address" type="search" /></div>
         <div class="field"><label for="charger-radius" data-i18n="chargers_radius">Search radius (km)</label><input id="charger-radius" type="number" min="1" max="300" step="1" value="25" required /></div>
         <div class="field"><label for="charger-reserve" data-i18n="chargers_reserve">Range reserve (%)</label><input id="charger-reserve" type="number" min="0" max="90" step="1" value="10" required /></div>
         <div class="field"><label for="charger-connector" data-i18n="chargers_connector">Connector</label><select id="charger-connector"><option value="" data-i18n="chargers_all_connectors">All connectors</option></select></div>
@@ -42,11 +45,12 @@
         </div>
         <button type="submit" id="find-chargers" class="btn" data-i18n="chargers_search">Find chargers</button>
     </form>
+    </details>
     <section id="charger-map" class="charger-map" aria-label="Charger map" hidden></section>
     <section class="charger-results" aria-labelledby="charger-results-heading" aria-busy="false">
         <h2 id="charger-results-heading" data-i18n="chargers_results">Reachable chargers</h2>
         <output id="charger-search-status" class="note" aria-live="polite"></output>
-        <p class="hint" data-i18n="chargers_method">Estimated driving distance, with your range reserve. Homeward preference uses a geographic corridor, not a planned route. Traffic, terrain and weather can reduce range.</p>
+        <p id="charger-method" class="hint" data-i18n="chargers_method">Estimated driving distance, with your range reserve. Homeward preference uses a geographic corridor, not a planned route. Traffic, terrain and weather can reduce range.</p>
         <p class="hint" data-i18n="chargers_price_note">Energy tariffs are snapshots, not a total charging quote. Extra fees and subscription terms may apply; verify price and availability with the operator.</p>
         <div id="charger-list"></div>
     </section>

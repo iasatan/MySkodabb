@@ -21,7 +21,7 @@ function downloadPage(fetch) {
             addEventListener() {}
         },
         localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
-        NearbyChargers: chargers, fetch, AbortSignal, Intl,
+        NearbyChargers: chargers, fetch, AbortSignal, Intl, URL,
         SKODA_WORKER_BASE_URL: "https://proxy.test", getLocale: () => "en", t: key => key, Option: class {}
     });
     vm.runInContext(fs.readFileSync(require.resolve("./nearby-chargers.js"), "utf8"), context);
@@ -67,6 +67,16 @@ test("charger cards offer Google Maps and Apple Maps driving directions from the
         assert.equal(link.rel, "noopener noreferrer");
     }
     assert.equal(details.href, "https://elmob.hu/otpr?charger=1");
+    vm.runInContext(`
+        chargerSearchDestination = { address: "Destination", position: { latitude: 47.5, longitude: 20 } };
+        renderChargerResults([charger]);
+    `, context);
+    const destinationCard = list.children[0];
+    assert.equal(destinationCard.children[1].children.length, 3);
+    assert.equal(destinationCard.children[1].children[0].children[0].textContent, "chargers_destination_driving");
+    assert.equal(new URL(destinationCard.children[3].children[0].href).searchParams.get("origin"), "47.5,19");
+    vm.runInContext("chargerVehicle = null; renderChargerResults([charger])", context);
+    assert.equal(new URL(list.children[0].children[3].children[0].href).searchParams.get("origin"), "47.5,20");
 });
 
 test("hybrid price limit uses car consumption when available and settings independently otherwise", () => {
@@ -119,6 +129,64 @@ test("hybrid filter excludes expensive and unknown tariffs before routing, keeps
     await context.findNearbyChargers();
     assert.equal(routed.length, 2);
     assert.equal(vm.runInContext('chargerElements["charger-search-status"].textContent', context), "chargers_hybrid_unavailable");
+});
+
+test("address lookup uses geocoding, caches successful lookups and rejects missing coordinates", async () => {
+    const requests = [];
+    const { context } = downloadPage(async url => {
+        requests.push(String(url));
+        return { ok: true, json: async () => String(url).includes("Missing") ? [{ lat: null, lon: null }] : [{ lat: "47.5", lon: "20" }] };
+    });
+    const position = await context.chargerGeocodeAddress("Destination & town");
+    assert.equal(position.latitude, 47.5);
+    assert.equal(position.longitude, 20);
+    const url = new URL(requests[0]);
+    assert.equal(url.origin, "https://nominatim.openstreetmap.org");
+    assert.equal(url.searchParams.get("q"), "Destination & town");
+    assert.equal(url.searchParams.get("limit"), "1");
+    await context.chargerGeocodeAddress("Destination & town");
+    assert.equal(requests.length, 1);
+    await assert.rejects(context.chargerGeocodeAddress("Missing"), /chargers_address_not_found/);
+});
+
+test("destination search uses the selected address, ignores current range and returns to the car when cleared", async () => {
+    const { context } = downloadPage();
+    const routed = [];
+    const results = [];
+    context.chargerGeocodeAddress = async address => {
+        assert.equal(address, "Destination");
+        return { latitude: 47.5, longitude: 20 };
+    };
+    context.chargerHomePosition = async () => null;
+    context.renderChargerMap = () => {};
+    context.renderChargerResults = chargers => results.push(Array.from(chargers, charger => charger.id));
+    context.chargerDrivingDistances = async (position, candidates) => {
+        routed.push({ longitude: position.longitude, ids: Array.from(candidates, charger => charger.id) });
+        return candidates.map(() => 5);
+    };
+    context.source = catalog([station(1, 19.01), station(2, 20.05)]);
+    context.car = car;
+    vm.runInContext(`
+        chargerCatalog = source;
+        chargerVehicle = { parkingPosition: car, electricRangeKm: 1 };
+        chargerElements["charger-address"].value = "  Destination  ";
+        chargerElements["charger-radius"].value = 25;
+        chargerElements["charger-reserve"].value = 10;
+    `, context);
+    await context.findNearbyChargers();
+    assert.deepEqual(routed[0], { longitude: 20, ids: [2] });
+    assert.deepEqual(results[0], [2]);
+    assert.equal(vm.runInContext('chargerElements["charger-results-heading"].textContent', context), "chargers_destination_results");
+    vm.runInContext('chargerElements["charger-address"].value = ""', context);
+    await context.findNearbyChargers();
+    assert.deepEqual(routed[1], { longitude: 19, ids: [1] });
+    assert.deepEqual(results[1], []);
+    assert.equal(vm.runInContext('chargerElements["charger-results-heading"].textContent', context), "chargers_results");
+    context.chargerGeocodeAddress = async () => { throw new Error("offline"); };
+    vm.runInContext('chargerElements["charger-address"].value = "Missing"', context);
+    await context.findNearbyChargers();
+    assert.equal(routed.length, 2);
+    assert.equal(vm.runInContext('chargerElements["charger-search-status"].textContent', context), "chargers_address_failed");
 });
 
 test("charger prices use a relative green-yellow-red gradient and neutral unknown prices", () => {
@@ -193,6 +261,10 @@ test("the map displays the car and current chargers, reframes results and clears
     vm.runInContext("renderChargerMap([])", context);
     assert.equal(markers.length, 1);
     assert.equal(views.at(-1).zoom, 13);
+    vm.runInContext('chargerSearchDestination = { address: "Destination", position: { latitude: 47.5, longitude: 20 } }; renderChargerMap([])', context);
+    assert.equal(markers[0].options.title, "Destination");
+    assert.equal(JSON.stringify(views.at(-1).position), "[47.5,20]");
+    vm.runInContext("chargerSearchDestination = null", context);
     vm.runInContext("chargerVehicle = null; renderChargerMap([])", context);
     assert.equal(container.hidden, true);
 });

@@ -1,12 +1,14 @@
 const chargerElements = Object.fromEntries([
     "refresh-car", "refresh-catalog", "charger-vehicle-status", "charger-catalog-status", "charger-warning",
-    "charger-filters", "charger-radius", "charger-reserve", "charger-connector", "charger-card-only", "charger-hybrid-only", "find-chargers",
-    "charger-map", "charger-search-status", "charger-list"
+    "charger-filters", "charger-address", "charger-radius", "charger-reserve", "charger-connector", "charger-card-only", "charger-hybrid-only", "find-chargers",
+    "charger-map", "charger-search-status", "charger-list", "charger-results-heading", "charger-method"
 ].map(id => [id, document.getElementById(id)]));
 let chargerCatalog = null;
 let chargerVehicle = null;
 let chargerVehicleMeta = null;
 let chargerHome = null;
+let chargerSearchDestination = null;
+const chargerAddressCache = new Map();
 let chargerBusy = false;
 let chargerMap = null;
 let chargerMapMarkers = null;
@@ -116,14 +118,14 @@ function chargerPriceColors(chargers) {
 
 function renderChargerMap(chargers) {
     const container = chargerElements["charger-map"];
-    const origin = chargerVehicle?.parkingPosition;
+    const origin = chargerSearchDestination?.position ?? chargerVehicle?.parkingPosition;
     if (!NearbyChargers.validPosition(origin) || typeof L === "undefined") {
         container.hidden = true;
         if (typeof L === "undefined") chargerMessage("charger-warning", t("chargers_map_unavailable"), true);
         return;
     }
     container.hidden = false;
-    container.setAttribute("aria-label", t("chargers_map"));
+    container.setAttribute("aria-label", t(chargerSearchDestination ? "chargers_destination_map" : "chargers_map"));
     if (!chargerMap) {
         chargerMap = L.map(container, { scrollWheelZoom: false });
         chargerMap.on("resize", fitChargerMap);
@@ -136,9 +138,10 @@ function renderChargerMap(chargers) {
     chargerMapMarkers.clearLayers();
     const carPosition = [origin.latitude, origin.longitude];
     const carLabel = document.createElement("span");
-    carLabel.textContent = t("map_title");
+    const originLabel = chargerSearchDestination ? chargerSearchDestination.address : t("map_title");
+    carLabel.textContent = originLabel;
     L.marker(carPosition, {
-        title: t("map_title"),
+        title: originLabel,
         icon: L.divIcon({ className: "charger-map-marker car", html: "&#9670;", iconSize: [32, 32], iconAnchor: [16, 16] })
     }).bindPopup(carLabel).addTo(chargerMapMarkers);
     const positions = [carPosition];
@@ -167,6 +170,19 @@ function renderChargerMap(chargers) {
     fitChargerMap();
 }
 
+async function chargerGeocodeAddress(address) {
+    if (chargerAddressCache.has(address)) return chargerAddressCache.get(address);
+    const url = new URL("https://nominatim.openstreetmap.org/search");
+    url.searchParams.set("q", address);
+    url.searchParams.set("format", "jsonv2");
+    url.searchParams.set("limit", "1");
+    const locations = await chargerFetchJson(url);
+    const position = { latitude: Number(locations[0]?.lat ?? Number.NaN), longitude: Number(locations[0]?.lon ?? Number.NaN) };
+    if (!NearbyChargers.validPosition(position)) throw new Error(t("chargers_address_not_found"));
+    chargerAddressCache.set(address, position);
+    return position;
+}
+
 async function chargerHomePosition() {
     const address = loadSkodaSettings().homeAddress;
     if (!address) throw new Error(t("chargers_home_missing"));
@@ -178,13 +194,7 @@ async function chargerHomePosition() {
             return saved.position;
         }
     } catch {}
-    const url = new URL("https://nominatim.openstreetmap.org/search");
-    url.searchParams.set("q", address);
-    url.searchParams.set("format", "jsonv2");
-    url.searchParams.set("limit", "1");
-    const locations = await chargerFetchJson(url);
-    const position = { latitude: Number(locations[0]?.lat), longitude: Number(locations[0]?.lon) };
-    if (!NearbyChargers.validPosition(position)) throw new Error(t("home_address_not_found"));
+    const position = await chargerGeocodeAddress(address);
     chargerHome = { address, position };
     try { chargerStorage?.setItem("myskodabb.chargerHome.v1", JSON.stringify(chargerHome)); } catch {}
     return position;
@@ -198,6 +208,16 @@ async function chargerDrivingDistances(car, candidates) {
     if (result.code !== "Ok" || !Array.isArray(result.distances?.[0]) ||
         result.distances[0].length !== candidates.length + 1) throw new Error(t("route_failed"));
     return result.distances[0].slice(1).map(distance => typeof distance === "number" && Number.isFinite(distance) ? distance / 1000 : null);
+}
+
+function chargerResultMetrics(charger, money) {
+    const values = [
+        [chargerSearchDestination ? "chargers_destination_driving" : "chargers_driving", `${formatNumber(charger.drivingKm)} km`],
+        ["chargers_energy_price", charger.pricePerKwh === null ? t("chargers_price_unknown") : `${money(charger.pricePerKwh)}/kWh`],
+        ["chargers_availability", t(charger.openNow === true ? "chargers_open" : "chargers_unknown")]
+    ];
+    if (!chargerSearchDestination) values.splice(2, 0, ["chargers_remaining", `${formatNumber(chargerVehicle.electricRangeKm - charger.drivingKm)} km`]);
+    return values;
 }
 
 function renderChargerResults(chargers) {
@@ -225,12 +245,7 @@ function renderChargerResults(chargers) {
         identity.append(heading, operator, tags, connectors);
         const metrics = document.createElement("dl");
         metrics.className = "charger-metrics";
-        for (const [label, value] of [
-            ["chargers_driving", `${formatNumber(charger.drivingKm)} km`],
-            ["chargers_energy_price", charger.pricePerKwh === null ? t("chargers_price_unknown") : `${money(charger.pricePerKwh)}/kWh`],
-            ["chargers_remaining", `${formatNumber(chargerVehicle.electricRangeKm - charger.drivingKm)} km`],
-            ["chargers_availability", t(charger.openNow === true ? "chargers_open" : "chargers_unknown")]
-        ]) {
+        for (const [label, value] of chargerResultMetrics(charger, money)) {
             const group = document.createElement("div");
             const term = document.createElement("dt");
             term.textContent = t(label);
@@ -248,7 +263,8 @@ function renderChargerResults(chargers) {
             .map(([key, value]) => `${t(key)}: ${money(value)}`).join(" \u00b7 ") || t("chargers_fees_unknown");
         const links = document.createElement("div");
         links.className = "link-row";
-        const origin = chargerVehicle.parkingPosition;
+        const origin = NearbyChargers.validPosition(chargerVehicle?.parkingPosition)
+            ? chargerVehicle.parkingPosition : chargerSearchDestination.position;
         const directions = document.createElement("a");
         directions.href = `https://www.google.com/maps/dir/?api=1&origin=${origin.latitude},${origin.longitude}&destination=${charger.lat},${charger.lng}&travelmode=driving`;
         directions.textContent = t("chargers_directions");
@@ -271,18 +287,36 @@ function renderChargerResults(chargers) {
     renderChargerMap(chargers);
 }
 
+async function chargerSearchOrigin() {
+    const address = chargerElements["charger-address"].value.trim();
+    if (address) {
+        chargerMessage("charger-search-status", t("chargers_geocoding"));
+        try { chargerSearchDestination = { address, position: await chargerGeocodeAddress(address) }; }
+        catch { throw new Error(t("chargers_address_failed")); }
+    }
+    const origin = chargerSearchDestination?.position ?? chargerVehicle?.parkingPosition;
+    if (!NearbyChargers.validPosition(origin)) throw new Error(t("parking_position_missing"));
+    const range = chargerVehicle?.electricRangeKm;
+    if (!chargerSearchDestination && !(typeof range === "number" && Number.isFinite(range) && range > 0)) {
+        throw new Error(t("consumption_missing_ev"));
+    }
+    return origin;
+}
+
 async function findNearbyChargers() {
     chargerElements["charger-list"].replaceChildren();
+    chargerSearchDestination = null;
     renderChargerMap([]);
-    if (!chargerCatalog || !chargerVehicle) return;
-    if (!NearbyChargers.validPosition(chargerVehicle.parkingPosition)) {
-        chargerMessage("charger-search-status", t("parking_position_missing"), true);
+    if (!chargerCatalog) return;
+    let origin;
+    try { origin = await chargerSearchOrigin(); }
+    catch (error) {
+        chargerMessage("charger-search-status", error.message, true);
         return;
     }
-    if (typeof chargerVehicle.electricRangeKm !== "number" || !Number.isFinite(chargerVehicle.electricRangeKm) || chargerVehicle.electricRangeKm <= 0) {
-        chargerMessage("charger-search-status", t("consumption_missing_ev"), true);
-        return;
-    }
+    chargerElements["charger-results-heading"].textContent = t(chargerSearchDestination ? "chargers_destination_results" : "chargers_results");
+    chargerElements["charger-method"].textContent = t(chargerSearchDestination ? "chargers_destination_method" : "chargers_method");
+    renderChargerMap([]);
     let hybridLimit = null;
     let hybridStatus = "";
     if (chargerElements["charger-hybrid-only"].checked) {
@@ -299,17 +333,20 @@ async function findNearbyChargers() {
     let homeWarning = "";
     try { home = await chargerHomePosition(); }
     catch (error) { homeWarning = ` ${t("chargers_home_unavailable", { reason: error.message })}`; }
-    const nearby = NearbyChargers.candidates(chargerCatalog, chargerVehicle.parkingPosition, home, chargerVehicle.electricRangeKm,
-        Number(chargerElements["charger-radius"].value), Number(chargerElements["charger-reserve"].value), chargerElements["charger-connector"].value)
+    const radius = Number(chargerElements["charger-radius"].value);
+    const nearby = NearbyChargers.candidates(chargerCatalog, origin, home, chargerSearchDestination ? radius : chargerVehicle.electricRangeKm,
+        radius, chargerSearchDestination ? 0 : Number(chargerElements["charger-reserve"].value), chargerElements["charger-connector"].value)
         .filter(charger => !chargerElements["charger-card-only"].checked || charger.acceptsBankCard)
         .filter(charger => hybridLimit === null || typeof charger.pricePerKwh === "number" && Number.isFinite(charger.pricePerKwh) &&
             charger.pricePerKwh >= 0 && charger.pricePerKwh <= hybridLimit);
-    const selected = NearbyChargers.shortlist(nearby);
+    const selected = NearbyChargers.shortlist(nearby).map(charger => chargerSearchDestination ? { ...charger, budgetKm: Infinity } : charger);
     try {
-        const distances = await chargerDrivingDistances(chargerVehicle.parkingPosition, selected);
+        const distances = await chargerDrivingDistances(origin, selected);
         const ranked = NearbyChargers.rankReachable(selected, distances);
         renderChargerResults(ranked);
-        chargerMessage("charger-search-status", t(ranked.length ? "chargers_found" : "chargers_none", {
+        const resultKeys = chargerSearchDestination ? ["chargers_destination_none", "chargers_destination_found"] : ["chargers_none", "chargers_found"];
+        chargerMessage("charger-search-status", t(resultKeys[Number(ranked.length > 0)], {
+            address: chargerSearchDestination?.address,
             count: ranked.length, checked: selected.length, total: nearby.length
         }) + hybridStatus + homeWarning);
     } catch {
