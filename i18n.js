@@ -179,7 +179,14 @@ const TRANSLATIONS = {
         test_in_progress: "Lekérés folyamatban…",
         test_success: "Sikeres kapcsolat – az akkumulátor töltöttsége {soc}%.{expiry}",
         test_key_expiry: " A kulcs lejárata: {expiry}.",
-        settings_cleared: "A tárolt adatok törölve."
+        settings_cleared: "A tárolt adatok törölve.",
+        storage_open: "LocalStorage kezelése",
+        storage_title: "LocalStorage",
+        storage_lead: "A böngészőben tárolt adatok megtekintése, szerkesztése és törlése.",
+        storage_key: "Kulcs", storage_value: "Érték", storage_save: "Mentés", storage_delete: "Törlés",
+        storage_add: "Új elem", storage_empty: "A localStorage üres.", storage_saved: "Elmentve.",
+        storage_deleted: "Törölve.", storage_confirm: "Biztosan törlöd: {key}?", storage_key_required: "A kulcs megadása kötelező.",
+        storage_back: "Vissza a beállításokhoz"
     },
     en: {
         nav_home: "Home",
@@ -359,7 +366,14 @@ const TRANSLATIONS = {
         test_in_progress: "Fetching…",
         test_success: "Connection successful – battery level is {soc}%.{expiry}",
         test_key_expiry: " Key expiry: {expiry}.",
-        settings_cleared: "Stored data cleared."
+        settings_cleared: "Stored data cleared.",
+        storage_open: "Manage localStorage",
+        storage_title: "LocalStorage",
+        storage_lead: "View, edit and delete the data stored in this browser.",
+        storage_key: "Key", storage_value: "Value", storage_save: "Save", storage_delete: "Delete",
+        storage_add: "New item", storage_empty: "localStorage is empty.", storage_saved: "Saved.",
+        storage_deleted: "Deleted.", storage_confirm: "Delete {key}?", storage_key_required: "A key is required.",
+        storage_back: "Back to settings"
     }
 };
 
