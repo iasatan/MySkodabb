@@ -186,7 +186,9 @@ const TRANSLATIONS = {
         storage_key: "Kulcs", storage_value: "Érték", storage_save: "Mentés", storage_delete: "Törlés",
         storage_add: "Új elem", storage_empty: "A localStorage üres.", storage_saved: "Elmentve.",
         storage_deleted: "Törölve.", storage_confirm: "Biztosan törlöd: {key}?", storage_key_required: "A kulcs megadása kötelező.",
-        storage_back: "Vissza a beállításokhoz"
+        storage_back: "Vissza a beállításokhoz",
+        storage_json: "JSON",
+        storage_invalid_json: "Érvénytelen JSON."
     },
     en: {
         nav_home: "Home",
@@ -373,7 +375,9 @@ const TRANSLATIONS = {
         storage_key: "Key", storage_value: "Value", storage_save: "Save", storage_delete: "Delete",
         storage_add: "New item", storage_empty: "localStorage is empty.", storage_saved: "Saved.",
         storage_deleted: "Deleted.", storage_confirm: "Delete {key}?", storage_key_required: "A key is required.",
-        storage_back: "Back to settings"
+        storage_back: "Back to settings",
+        storage_json: "JSON",
+        storage_invalid_json: "Invalid JSON."
     }
 };
 
