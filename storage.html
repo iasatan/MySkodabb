@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LocalStorage | Škoda Utility</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="index.html">
+        <span class="brand-mark">ŠKODA</span>
+        <span class="brand-sub">Utility</span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" data-i18n="nav_menu">Menü</button>
+    <nav id="primary-nav">
+        <a href="index.html" data-i18n="nav_home">Kezdőlap</a>
+        <a href="climate.html" data-i18n="nav_climate">Klíma</a>
+        <a href="calculator.html" data-i18n="nav_calculator">Töltés kalkulátor</a>
+        <a href="statistics.html" data-i18n="nav_statistics">Statisztikák</a>
+        <a href="settings.html" class="active" data-i18n="nav_settings">Beállítások</a>
+    </nav>
+</header>
+
+<main class="page">
+    <h1 data-i18n="storage_title">LocalStorage</h1>
+    <p class="lead" data-i18n="storage_lead">A böngészőben tárolt adatok megtekintése, szerkesztése és törlése.</p>
+    <p id="storage-status" class="note" aria-live="polite"></p>
+    <section class="panel">
+        <table id="storage-table" style="width:100%">
+            <thead><tr><th data-i18n="storage_key">Kulcs</th><th data-i18n="storage_value">Érték</th><th></th></tr></thead>
+            <tbody></tbody>
+        </table>
+        <h2 data-i18n="storage_add">Új elem</h2>
+        <form id="storage-add" class="field">
+            <input type="text" id="new-key" data-i18n-placeholder="storage_key" placeholder="Kulcs" />
+            <textarea id="new-value" rows="2" data-i18n-placeholder="storage_value" placeholder="Érték"></textarea>
+            <button class="btn" type="submit" data-i18n="storage_save">Mentés</button>
+        </form>
+    </section>
+    <p><a href="settings.html" data-i18n="storage_back">Vissza a beállításokhoz</a></p>
+</main>
+
+<footer class="footer">
+    <p data-i18n="footer_disclaimer">Nem hivatalos, rajongói segédoldal. Škoda Auto a.s. védjegyei a jogtulajdonosé.</p>
+</footer>
+
+<script src="skodaApi.js"></script>
+<script src="i18n.js"></script>
+<script src="header.js"></script>
+<script src="storage.js"></script>
+</body>
+</html>
