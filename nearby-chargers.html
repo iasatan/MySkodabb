@@ -56,6 +56,25 @@
     </section>
     <p class="note charger-attribution"><a href="https://elmob.hu/otpr" target="_blank" rel="noopener noreferrer">OTPR / elmob.hu</a> &middot; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> / OSRM</p>
 </main>
+<dialog id="charger-refresh-dialog" class="charger-refresh-dialog" aria-labelledby="charger-refresh-title">
+    <form id="charger-refresh-form">
+        <h2 id="charger-refresh-title" data-i18n="chargers_refresh_title">Refresh chargers</h2>
+        <fieldset class="charger-preferences">
+            <legend data-i18n="settings_charger_types">Charger types</legend>
+            <p class="note" data-i18n="settings_charger_all">No selection means all.</p>
+            <div id="charger-types" class="charger-options"></div>
+        </fieldset>
+        <fieldset class="charger-preferences">
+            <legend data-i18n="settings_charger_counties">Counties</legend>
+            <p class="note" data-i18n="settings_charger_all">No selection means all.</p>
+            <div id="charger-counties" class="charger-options"></div>
+        </fieldset>
+        <div class="actions">
+            <button type="submit" class="btn" data-i18n="chargers_refresh_confirm">Refresh chargers</button>
+            <button type="button" id="charger-refresh-cancel" class="btn ghost" data-i18n="chargers_refresh_cancel">Cancel</button>
+        </div>
+    </form>
+</dialog>
 <footer class="footer"><p data-i18n="footer_disclaimer">Unofficial enthusiast utility. Trademarks belong to their owners.</p></footer>
 <script src="skodaApi.js"></script>
 <script src="i18n.js"></script>

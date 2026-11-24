@@ -73,7 +73,9 @@ function currentFormValues() {
         evKwhPer100Km: evKwhPer100KmInput.value,
         fuelPrice: fuelPriceInput.value,
         language: languageInput.value,
-        currency: currencyInput.value
+        currency: currencyInput.value,
+        chargerTypes: loadSkodaSettings().chargerTypes,
+        chargerCounties: loadSkodaSettings().chargerCounties
     };
 }
 

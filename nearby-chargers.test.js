@@ -13,6 +13,54 @@ function catalog(items) {
     return { currency: "HUF", chargers: items };
 }
 
+test("compact cache filters counties and connector types after pricing and keeps only needed data", () => {
+    const source = { ...catalog([
+        station(1, 19.05, { county: "Pest", timezone: "Europe/Budapest", connectors: [
+            { type: "CHAdeMO", secret: "discard" }, { type: "CCS Type 2", powerKw: 50 }
+        ] }), station(2, 19.06, { county: "Other", connectors: [{ type: "CCS Type 2" }] })
+    ]), version: "v1", ratesFromHuf: { EUR: 0.0025 } };
+    const priced = chargers.mergePricing(source, { full: true, staticVersion: "v1", changes: [
+        { id: 1, connectors: [{ pricePerKwh: 100, priceCurrency: "HUF" }, { pricePerKwh: 200, priceCurrency: "HUF" }] }
+    ] });
+    const compact = chargers.compactCatalog(priced, { chargerTypes: ["CCS Type 2"], chargerCounties: ["Pest"], currency: "EUR" });
+    assert.equal(compact.chargers.length, 1);
+    assert.equal(compact.chargers[0].connectors[0].pricePerKwh, 200);
+    assert.equal(compact.fuelConversionRate, 400);
+    assert.equal(JSON.stringify(compact).includes("timezone"), false);
+    assert.equal(JSON.stringify(compact).includes("ratesFromHuf"), false);
+    assert.equal(JSON.stringify(compact).includes("secret"), false);
+});
+
+test("filtered catalogues including empty matches survive cache reload", () => {
+    const items = new Map();
+    const storage = { getItem: key => items.get(key), setItem: (key, value) => items.set(key, value) };
+    const source = catalog([station(1, 19.05, { county: "Pest", connectors: [{ type: "Type 2", pricePerKwh: 20 }] })]);
+    const settings = { currency: "HUF", chargerTypes: ["Type 2"], chargerCounties: ["Pest"] };
+    chargers.saveCache(storage, source, 123, settings);
+    assert.equal(chargers.readCache(storage).catalog.chargers[0].connectors[0].pricePerKwh, 20);
+    chargers.saveCache(storage, source, 123, { ...settings, chargerCounties: ["Zala"] });
+    assert.deepEqual(chargers.readCache(storage).catalog.chargers, []);
+});
+
+test("page stores and displays only selected chargers after download", async () => {
+    const source = { ...catalog([
+        station(1, 19.05, { county: "Pest", connectors: [{ type: "CHAdeMO" }, { type: "Type 2" }] }),
+        station(2, 19.06, { county: "Zala", connectors: [{ type: "Type 2" }] })
+    ]), version: "v1" };
+    const { context, storage } = downloadPage(async url => ({ ok: true, json: async () => url.endsWith("/delta")
+        ? { full: true, staticVersion: "v1", changes: [{ id: 1, connectors: [
+            { pricePerKwh: 100, priceCurrency: "HUF" }, { pricePerKwh: 200, priceCurrency: "HUF" }
+        ] }] } : source }));
+    context.loadSkodaSettings = () => ({ currency: "HUF", chargerTypes: ["Type 2"], chargerCounties: ["Pest"] });
+    await context.loadChargerCatalog();
+    const saved = JSON.parse(storage.get(chargers.CACHE_KEY)).catalog;
+    assert.equal(saved.chargers.length, 1);
+    assert.equal(saved.chargers[0].connectors[0].pricePerKwh, 200);
+    assert.equal(vm.runInContext("chargerCatalog.chargers.length", context), 1);
+    await context.loadChargerCatalog();
+    assert.equal(vm.runInContext("chargerCatalog.chargers[0].connectors[0].pricePerKwh", context), 200);
+});
+
 function downloadPage(fetch) {
     const storage = new Map();
     const context = vm.createContext({
@@ -22,7 +70,8 @@ function downloadPage(fetch) {
         },
         localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
         NearbyChargers: chargers, fetch, AbortSignal, Intl, URL,
-        SKODA_WORKER_BASE_URL: "https://proxy.test", getLocale: () => "en", t: key => key, Option: class {}
+        SKODA_WORKER_BASE_URL: "https://proxy.test", getLocale: () => "en", t: key => key, Option: class {},
+        loadSkodaSettings: () => ({ currency: "HUF", chargerTypes: [], chargerCounties: [] })
     });
     vm.runInContext(fs.readFileSync(require.resolve("./nearby-chargers.js"), "utf8"), context);
     return { context, storage };
@@ -458,4 +507,41 @@ test("worker proxies only the two fixed public catalogue routes, without API key
         assert.equal(failed.status, 502);
         assert.equal(failed.headers.get("Access-Control-Allow-Origin"), "*");
     } finally { globalThis.fetch = originalFetch; }
+});
+
+test("refresh applies selections only after the new filtered cache is saved", async () => {
+    const source = { ...catalog([
+        station(1, 19.05, { county: "Pest", connectors: [{ type: "Type 2" }] }),
+        station(2, 19.06, { county: "Zala", connectors: [{ type: "CHAdeMO" }] })
+    ]), version: "v1" };
+    const { context, storage } = downloadPage(async url => ({ ok: true, json: async () => url.endsWith("/delta")
+        ? { full: true, staticVersion: "v1", changes: [] } : source }));
+    let settings = { currency: "HUF", chargerTypes: [], chargerCounties: [] };
+    context.loadSkodaSettings = () => settings;
+    context.saveSkodaSettings = (updated, options) => {
+        assert.equal(options.preserveChargerCache, true);
+        settings = updated;
+    };
+    const preferences = { chargerTypes: ["Type 2"], chargerCounties: ["Pest"] };
+    await context.loadChargerCatalog(true, preferences);
+    assert.deepEqual(settings.chargerTypes, ["Type 2"]);
+    assert.equal(JSON.parse(storage.get(chargers.CACHE_KEY)).catalog.chargers.length, 1);
+    const saved = storage.get(chargers.CACHE_KEY);
+    context.fetch = async () => { throw new Error("offline"); };
+    await context.loadChargerCatalog(true, { chargerTypes: ["CHAdeMO"], chargerCounties: ["Zala"] });
+    assert.equal(storage.get(chargers.CACHE_KEY), saved);
+    assert.deepEqual(settings.chargerTypes, ["Type 2"]);
+});
+
+test("a failed cache write does not replace saved refresh preferences", async () => {
+    const source = { ...catalog([station(1, 19.05, { county: "Pest", connectors: [{ type: "Type 2" }] })]), version: "v1" };
+    const { context, storage } = downloadPage(async url => ({ ok: true, json: async () => url.endsWith("/delta")
+        ? { full: true, staticVersion: "v1", changes: [] } : source }));
+    storage.set(chargers.CACHE_KEY, "previous cache");
+    context.localStorage.setItem = () => { throw new Error("quota"); };
+    let savedSettings = false;
+    context.saveSkodaSettings = () => { savedSettings = true; };
+    await context.loadChargerCatalog(true, { chargerTypes: ["Type 2"], chargerCounties: ["Pest"] });
+    assert.equal(storage.get(chargers.CACHE_KEY), "previous cache");
+    assert.equal(savedSettings, false);
 });

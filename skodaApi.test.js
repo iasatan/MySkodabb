@@ -172,3 +172,18 @@ test("consumption history rejects malformed schemas and does not invent readings
     assert.equal(context.loadConsumptionReadings().length, 0);
     assert.equal(storage.has("myskodabb.consumption.v1"), false);
 });
+
+test("charger preferences persist and invalidate cached data only when filters or currency change", () => {
+    const { context, storage } = app();
+    const preferences = { chargerTypes: ["Type 2", "CCS Type 2"], chargerCounties: ["Pest", "Budapest"] };
+    storage.set("myskodabb.chargers.v1", "old cache");
+    context.saveSkodaSettings(preferences);
+    assert.equal(storage.has("myskodabb.chargers.v1"), false);
+    assert.deepEqual(Array.from(context.loadSkodaSettings().chargerTypes), ["CCS Type 2", "Type 2"]);
+    assert.deepEqual(Array.from(context.loadSkodaSettings().chargerCounties), ["Budapest", "Pest"]);
+    storage.set("myskodabb.chargers.v1", "new cache");
+    context.saveSkodaSettings(preferences);
+    assert.equal(storage.get("myskodabb.chargers.v1"), "new cache");
+    context.saveSkodaSettings({ ...preferences, currency: "EUR" });
+    assert.equal(storage.has("myskodabb.chargers.v1"), false);
+});

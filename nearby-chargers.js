@@ -1,7 +1,8 @@
 const chargerElements = Object.fromEntries([
     "refresh-car", "refresh-catalog", "charger-vehicle-status", "charger-catalog-status", "charger-warning",
     "charger-filters", "charger-address", "charger-radius", "charger-reserve", "charger-connector", "charger-card-only", "charger-hybrid-only", "find-chargers",
-    "charger-map", "charger-search-status", "charger-list", "charger-results-heading", "charger-method", "charger-hybrid-label"
+    "charger-map", "charger-search-status", "charger-list", "charger-results-heading", "charger-method", "charger-hybrid-label",
+    "charger-refresh-dialog", "charger-refresh-form", "charger-refresh-cancel", "charger-types", "charger-counties"
 ].map(id => [id, document.getElementById(id)]));
 let chargerCatalog = null;
 let chargerVehicle = null;
@@ -15,6 +16,31 @@ let chargerMapMarkers = null;
 let chargerMapPositions = [];
 let chargerStorage = null;
 try { chargerStorage = localStorage; } catch {}
+
+const chargerTypeOptions = ["CCS Type 2", "Type 2", "CHAdeMO", "Unknown"];
+const chargerCountyOptions = ["Baranya", "Borsod-Abaúj-Zemplén", "Budapest", "Bács-Kiskun", "Békés",
+    "Csongrád-Csanád", "Fejér", "Győr-Moson-Sopron", "Hajdú-Bihar", "Heves", "Jász-Nagykun-Szolnok",
+    "Komárom-Esztergom", "Nógrád", "Pest", "Somogy", "Szabolcs-Szatmár-Bereg", "Tolna", "Vas", "Veszprém", "Zala"];
+
+function populateChargerOptions(container, options, selected) {
+    container.replaceChildren();
+    for (const option of new Set([...options, ...selected])) {
+        const label = document.createElement("label");
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.value = option;
+        input.checked = selected.includes(option);
+        label.append(input, document.createTextNode(option));
+        container.append(label);
+    }
+}
+
+function openChargerRefreshDialog() {
+    const settings = loadSkodaSettings();
+    populateChargerOptions(chargerElements["charger-types"], chargerTypeOptions, settings.chargerTypes);
+    populateChargerOptions(chargerElements["charger-counties"], chargerCountyOptions, settings.chargerCounties);
+    chargerElements["charger-refresh-dialog"].showModal();
+}
 
 function chargerMessage(id, message, error = false) {
     chargerElements[id].textContent = message;
@@ -35,10 +61,12 @@ async function chargerPublicData(path) {
     return chargerFetchJson(`${SKODA_WORKER_BASE_URL}/chargers/${path}`);
 }
 
-function setChargerCatalog(catalog, fetchedAt, source, persist = true) {
+function setChargerCatalog(catalog, fetchedAt, source, persist = true, settings = loadSkodaSettings()) {
+    catalog = NearbyChargers.compactCatalog(catalog, settings);
     chargerCatalog = catalog;
+    let saved = !persist;
     if (persist) {
-        try { NearbyChargers.saveCache(chargerStorage, catalog, fetchedAt); }
+        try { NearbyChargers.saveCache(chargerStorage, catalog, fetchedAt, settings); saved = true; }
         catch { chargerMessage("charger-warning", t("chargers_storage_failed"), true); }
     }
     chargerMessage("charger-catalog-status", t("chargers_catalog_status", {
@@ -52,13 +80,14 @@ function setChargerCatalog(catalog, fetchedAt, source, persist = true) {
         .sort((first, second) => first.localeCompare(second));
     for (const type of types) select.add(new Option(type, type));
     if (types.includes(previous)) select.value = previous;
+    return saved;
 }
 
-async function loadChargerCatalog(forceRefresh = false) {
+async function loadChargerCatalog(forceRefresh = false, preferences = null) {
     if (!forceRefresh) {
         const cached = NearbyChargers.readCache(chargerStorage);
         if (cached) {
-            setChargerCatalog(cached.catalog, cached.fetchedAt, "source_cache", false);
+            setChargerCatalog(cached.catalog, cached.fetchedAt, "source_cache", !cached.catalog.compact);
             return;
         }
     }
@@ -68,7 +97,9 @@ async function loadChargerCatalog(forceRefresh = false) {
         try {
             catalog = NearbyChargers.mergePricing(catalog, await chargerPublicData("map-catalog/delta"));
         } catch { chargerMessage("charger-warning", t("chargers_pricing_failed"), true); }
-        setChargerCatalog(catalog, Date.now(), "source_fresh");
+        const settings = { ...loadSkodaSettings(), ...preferences };
+        const saved = setChargerCatalog(catalog, Date.now(), "source_fresh", true, settings);
+        if (preferences && saved) saveSkodaSettings(settings, { preserveChargerCache: true });
     } catch {
         if (chargerCatalog) {
             chargerMessage("charger-catalog-status", t("chargers_refresh_failed"), true);
@@ -390,12 +421,25 @@ chargerElements["refresh-car"].addEventListener("click", () => chargerAction(asy
     await loadChargerVehicle(true);
     await findNearbyChargers();
 }));
-chargerElements["refresh-catalog"].addEventListener("click", () => chargerAction(async () => {
-    chargerMessage("charger-warning", "");
-    await loadChargerCatalog(true);
-    await findNearbyChargers();
-}));
+chargerElements["refresh-catalog"].addEventListener("click", openChargerRefreshDialog);
+chargerElements["charger-refresh-cancel"].addEventListener("click", () => chargerElements["charger-refresh-dialog"].close());
+chargerElements["charger-refresh-form"].addEventListener("submit", event => {
+    event.preventDefault();
+    const selected = id => [...chargerElements[id].querySelectorAll("input:checked")].map(input => input.value);
+    const preferences = { chargerTypes: selected("charger-types"), chargerCounties: selected("charger-counties") };
+    chargerElements["charger-refresh-dialog"].close();
+    void chargerAction(async () => {
+        chargerMessage("charger-warning", "");
+        await loadChargerCatalog(true, preferences);
+        await findNearbyChargers();
+    });
+});
 document.addEventListener("DOMContentLoaded", () => chargerAction(async () => {
-    await Promise.all([loadChargerVehicle(), loadChargerCatalog()]);
-    await findNearbyChargers();
+    await loadChargerVehicle();
+    if (NearbyChargers.readCache(chargerStorage)) {
+        await loadChargerCatalog();
+        await findNearbyChargers();
+    } else {
+        openChargerRefreshDialog();
+    }
 }));

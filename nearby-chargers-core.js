@@ -37,6 +37,7 @@
     function convertPrice(amount, currency, catalog) {
         if (nonnegative(amount) === null) return null;
         if (currency === catalog.currency) return amount;
+        if (currency === catalog.fuelCurrency && validNumber(catalog.fuelConversionRate)) return amount * catalog.fuelConversionRate;
         const source = currency === "HUF" ? 1 : catalog.ratesFromHuf?.[currency];
         const target = catalog.currency === "HUF" ? 1 : catalog.ratesFromHuf?.[catalog.currency];
         return validNumber(source) && source > 0 && validNumber(target) && target > 0 ? amount / source * target : null;
@@ -83,14 +84,34 @@
         try {
             const cached = JSON.parse(storage.getItem(CACHE_KEY));
             if (cached?.schema !== 1 || !validNumber(cached.fetchedAt) || cached.fetchedAt <= 0) return null;
+            if (cached.catalog?.compact === true && Array.isArray(cached.catalog.chargers) &&
+                typeof cached.catalog.currency === "string" && /^[A-Z]{3}$/.test(cached.catalog.currency)) return cached;
             return { ...cached, catalog: normalizeCatalog(cached.catalog) };
         } catch {
             return null;
         }
     }
 
-    function saveCache(storage, catalog, fetchedAt = Date.now()) {
-        const cached = { schema: 1, fetchedAt, catalog: normalizeCatalog(catalog) };
+    function compactCatalog(catalog, settings = {}) {
+        const types = settings.chargerTypes || [];
+        const counties = settings.chargerCounties || [];
+        const chargers = catalog.chargers.flatMap(charger => {
+            if (counties.length && !counties.includes(charger.county)) return [];
+            const connectors = (charger.connectors || []).filter(connector => !types.length || types.includes(connector.type))
+                .map(({ type, powerKw, pricePerKwh, acceptsBankCard }) => ({ type, powerKw, pricePerKwh, acceptsBankCard }));
+            if (types.length && !connectors.length) return [];
+            const { id, name, lat, lng, usageType, status, openNow, operatorName, county, acceptsBankCard, pricePerKwh, extraFees } = charger;
+            return [{ id, name, lat, lng, usageType, status, openNow, operatorName, county,
+                acceptsBankCard: types.length ? connectors.some(connector => connector.acceptsBankCard === true) : acceptsBankCard,
+                pricePerKwh: types.length ? null : pricePerKwh,
+                extraFees: extraFees && { startFee: extraFees.startFee, startBlock: extraFees.startBlock, idle: extraFees.idle, parking: extraFees.parking }, connectors }];
+        });
+        return { compact: true, version: catalog.version || null, currency: catalog.currency, pricingAt: catalog.pricingAt,
+            fuelCurrency: settings.currency, fuelConversionRate: convertPrice(1, settings.currency, catalog), chargers };
+    }
+
+    function saveCache(storage, catalog, fetchedAt = Date.now(), settings = {}) {
+        const cached = { schema: 1, fetchedAt, catalog: compactCatalog(catalog, settings) };
         storage.setItem(CACHE_KEY, JSON.stringify(cached));
         return cached;
     }
@@ -149,7 +170,7 @@
             (first.startFee ?? Infinity) - (second.startFee ?? Infinity) || first.drivingKm - second.drivingKm);
     }
 
-    const api = { CACHE_KEY, CATALOG_URL, validPosition, distanceKm, normalizeCatalog, mergePricing, readCache, saveCache,
+    const api = { CACHE_KEY, CATALOG_URL, validPosition, distanceKm, normalizeCatalog, mergePricing, compactCatalog, readCache, saveCache,
         candidates, shortlist, rankReachable, hybridPriceLimit, hybridCostPerKm };
     if (typeof module !== "undefined" && module.exports) module.exports = api;
     else root.NearbyChargers = api;

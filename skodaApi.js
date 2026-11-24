@@ -44,6 +44,10 @@ function optionalNonnegativeNumber(value) {
     return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
+function normalizedChargerFilters(value) {
+    return Array.isArray(value) ? [...new Set(value.filter(item => typeof item === "string").map(item => item.trim()).filter(Boolean))].sort() : [];
+}
+
 function loadSkodaSettings() {
     try {
         const raw = localStorage.getItem(SKODA_STORAGE_KEY);
@@ -60,7 +64,9 @@ function loadSkodaSettings() {
             evKwhPer100Km: positiveNumberOrDefault(parsed.evKwhPer100Km, DEFAULT_EV_KWH_PER_100_KM),
             fuelPrice: optionalNonnegativeNumber(parsed.fuelPrice),
             language: supportedOrDefault(parsed.language, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE),
-            currency: supportedOrDefault(parsed.currency, SUPPORTED_CURRENCIES, DEFAULT_CURRENCY)
+            currency: supportedOrDefault(parsed.currency, SUPPORTED_CURRENCIES, DEFAULT_CURRENCY),
+            chargerTypes: normalizedChargerFilters(parsed.chargerTypes),
+            chargerCounties: normalizedChargerFilters(parsed.chargerCounties)
         };
     } catch {
         return {
@@ -75,7 +81,9 @@ function loadSkodaSettings() {
             evKwhPer100Km: DEFAULT_EV_KWH_PER_100_KM,
             fuelPrice: null,
             language: DEFAULT_LANGUAGE,
-            currency: DEFAULT_CURRENCY
+            currency: DEFAULT_CURRENCY,
+            chargerTypes: [],
+            chargerCounties: []
         };
     }
 }
@@ -88,7 +96,11 @@ function trimTrailingSlashes(value) {
     return value.slice(0, end);
 }
 
-function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer100Km, fuelTankLitres, evKwhPer100Km, fuelPrice, language, currency }) {
+function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer100Km, fuelTankLitres, evKwhPer100Km, fuelPrice, language, currency, chargerTypes, chargerCounties }, { preserveChargerCache = false } = {}) {
+    const previous = loadSkodaSettings();
+    const types = normalizedChargerFilters(chargerTypes);
+    const counties = normalizedChargerFilters(chargerCounties);
+    const selectedCurrency = supportedOrDefault(currency, SUPPORTED_CURRENCIES, DEFAULT_CURRENCY);
     localStorage.setItem(
         SKODA_STORAGE_KEY,
         JSON.stringify({
@@ -103,15 +115,22 @@ function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer
             evKwhPer100Km: positiveNumberOrDefault(evKwhPer100Km, DEFAULT_EV_KWH_PER_100_KM),
             fuelPrice: optionalNonnegativeNumber(fuelPrice),
             language: supportedOrDefault(language, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE),
-            currency: supportedOrDefault(currency, SUPPORTED_CURRENCIES, DEFAULT_CURRENCY)
+            currency: selectedCurrency,
+            chargerTypes: types,
+            chargerCounties: counties
         })
     );
+    if (!preserveChargerCache && (JSON.stringify(previous.chargerTypes) !== JSON.stringify(types) ||
+        JSON.stringify(previous.chargerCounties) !== JSON.stringify(counties) || previous.currency !== selectedCurrency)) {
+        localStorage.removeItem("myskodabb.chargers.v1");
+    }
 }
 
 function clearSkodaSettings() {
     localStorage.removeItem(SKODA_STORAGE_KEY);
     localStorage.removeItem(SKODA_CACHE_KEY);
     localStorage.removeItem(SKODA_DEMO_CACHE_KEY);
+    localStorage.removeItem("myskodabb.chargers.v1");
 }
 
 function readCachedVehicle(vin, cacheKey = SKODA_CACHE_KEY) {
