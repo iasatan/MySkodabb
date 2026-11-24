@@ -61,12 +61,62 @@ async function chargerPublicData(path) {
     return chargerFetchJson(`${SKODA_WORKER_BASE_URL}/chargers/${path}`);
 }
 
-function setChargerCatalog(catalog, fetchedAt, source, persist = true, settings = loadSkodaSettings()) {
+function chargerCachePreferences(settings) {
+    const compare = (first, second) => (first > second) - (first < second);
+    return JSON.stringify([settings.currency, [...(settings.chargerTypes || [])].sort(compare), [...(settings.chargerCounties || [])].sort(compare)]);
+}
+
+function chargerDatabaseOperation(mode, operation) {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open("myskodabb-chargers", 1);
+        let blocked = false;
+        request.onupgradeneeded = () => request.result.createObjectStore("cache");
+        request.onerror = () => reject(request.error);
+        request.onblocked = () => { blocked = true; reject(new Error("IndexedDB blocked")); };
+        request.onsuccess = () => {
+            const database = request.result;
+            if (blocked) { database.close(); return; }
+            database.onversionchange = () => database.close();
+            try {
+                const transaction = database.transaction("cache", mode);
+                const result = operation(transaction.objectStore("cache"));
+                transaction.oncomplete = () => { database.close(); resolve(result.result); };
+                transaction.onabort = transaction.onerror = () => { database.close(); reject(transaction.error); };
+            } catch (error) { database.close(); reject(error); }
+        };
+    });
+}
+
+async function writeChargerCache(catalog, fetchedAt, settings) {
+    let serialized;
+    NearbyChargers.saveCache({ setItem: (key, value) => { serialized = value; } }, catalog, fetchedAt, settings);
+    await chargerDatabaseOperation("readwrite", store => store.put({ serialized, preferences: chargerCachePreferences(settings) }, NearbyChargers.CACHE_KEY));
+}
+
+async function readChargerCache() {
+    const settings = loadSkodaSettings();
+    try {
+        const stored = await chargerDatabaseOperation("readonly", store => store.get(NearbyChargers.CACHE_KEY));
+        if (stored) {
+            if (stored.preferences !== chargerCachePreferences(settings)) return null;
+            return NearbyChargers.readCache({ getItem: () => stored.serialized });
+        }
+    } catch {}
+    const legacy = NearbyChargers.readCache(chargerStorage);
+    if (!legacy) return null;
+    try {
+        await writeChargerCache(legacy.catalog, legacy.fetchedAt, settings);
+        try { chargerStorage.removeItem(NearbyChargers.CACHE_KEY); } catch {}
+    } catch { chargerMessage("charger-warning", t("chargers_storage_failed"), true); }
+    return legacy;
+}
+
+async function setChargerCatalog(catalog, fetchedAt, source, persist = true, settings = loadSkodaSettings()) {
     catalog = NearbyChargers.compactCatalog(catalog, settings);
     chargerCatalog = catalog;
     let saved = !persist;
     if (persist) {
-        try { NearbyChargers.saveCache(chargerStorage, catalog, fetchedAt, settings); saved = true; }
+        try { await writeChargerCache(catalog, fetchedAt, settings); saved = true; }
         catch { chargerMessage("charger-warning", t("chargers_storage_failed"), true); }
     }
     chargerMessage("charger-catalog-status", t("chargers_catalog_status", {
@@ -85,9 +135,9 @@ function setChargerCatalog(catalog, fetchedAt, source, persist = true, settings 
 
 async function loadChargerCatalog(forceRefresh = false, preferences = null) {
     if (!forceRefresh) {
-        const cached = NearbyChargers.readCache(chargerStorage);
+        const cached = await readChargerCache();
         if (cached) {
-            setChargerCatalog(cached.catalog, cached.fetchedAt, "source_cache", !cached.catalog.compact);
+            await setChargerCatalog(cached.catalog, cached.fetchedAt, "source_cache", !cached.catalog.compact);
             return;
         }
     }
@@ -98,7 +148,7 @@ async function loadChargerCatalog(forceRefresh = false, preferences = null) {
             catalog = NearbyChargers.mergePricing(catalog, await chargerPublicData("map-catalog/delta"));
         } catch { chargerMessage("charger-warning", t("chargers_pricing_failed"), true); }
         const settings = { ...loadSkodaSettings(), ...preferences };
-        const saved = setChargerCatalog(catalog, Date.now(), "source_fresh", true, settings);
+        const saved = await setChargerCatalog(catalog, Date.now(), "source_fresh", true, settings);
         if (preferences && saved) saveSkodaSettings(settings, { preserveChargerCache: true });
     } catch {
         if (chargerCatalog) {
@@ -436,8 +486,9 @@ chargerElements["charger-refresh-form"].addEventListener("submit", event => {
 });
 document.addEventListener("DOMContentLoaded", () => chargerAction(async () => {
     await loadChargerVehicle();
-    if (NearbyChargers.readCache(chargerStorage)) {
-        await loadChargerCatalog();
+    const cached = await readChargerCache();
+    if (cached) {
+        await setChargerCatalog(cached.catalog, cached.fetchedAt, "source_cache", !cached.catalog.compact);
         await findNearbyChargers();
     } else {
         openChargerRefreshDialog();

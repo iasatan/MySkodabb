@@ -123,6 +123,7 @@ function saveSkodaSettings({ apiKey, vin, homeAddress, batteryKwh, fuelLitresPer
     if (!preserveChargerCache && (JSON.stringify(previous.chargerTypes) !== JSON.stringify(types) ||
         JSON.stringify(previous.chargerCounties) !== JSON.stringify(counties) || previous.currency !== selectedCurrency)) {
         localStorage.removeItem("myskodabb.chargers.v1");
+        try { indexedDB.deleteDatabase("myskodabb-chargers"); } catch {}
     }
 }
 
@@ -131,6 +132,7 @@ function clearSkodaSettings() {
     localStorage.removeItem(SKODA_CACHE_KEY);
     localStorage.removeItem(SKODA_DEMO_CACHE_KEY);
     localStorage.removeItem("myskodabb.chargers.v1");
+    try { indexedDB.deleteDatabase("myskodabb-chargers"); } catch {}
 }
 
 function readCachedVehicle(vin, cacheKey = SKODA_CACHE_KEY) {

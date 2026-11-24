@@ -6,6 +6,7 @@ const vm = require("node:vm");
 function app(settings = {}, random = Math.random) {
     const storage = new Map([["skoda-utility-settings", JSON.stringify(settings)]]);
     const requests = [];
+    const deletedDatabases = [];
     const context = vm.createContext({
         localStorage: {
             getItem: (key) => storage.get(key) ?? null,
@@ -13,6 +14,7 @@ function app(settings = {}, random = Math.random) {
             removeItem: (key) => storage.delete(key)
         },
         Math: Object.assign(Object.create(Math), { random }),
+        indexedDB: { deleteDatabase: name => deletedDatabases.push(name) },
         URL,
         document: { addEventListener() {} },
         fetch: async (...args) => {
@@ -23,7 +25,7 @@ function app(settings = {}, random = Math.random) {
     for (const file of ["skodaApi.js", "i18n.js"]) {
         vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), "utf8"), context);
     }
-    return { context, storage, requests };
+    return { context, storage, requests, deletedDatabases };
 }
 
 test("fuel price settings round trip without treating missing or invalid values as free fuel", () => {
@@ -174,16 +176,24 @@ test("consumption history rejects malformed schemas and does not invent readings
 });
 
 test("charger preferences persist and invalidate cached data only when filters or currency change", () => {
-    const { context, storage } = app();
+    const { context, storage, deletedDatabases } = app();
     const preferences = { chargerTypes: ["Type 2", "CCS Type 2"], chargerCounties: ["Pest", "Budapest"] };
     storage.set("myskodabb.chargers.v1", "old cache");
     context.saveSkodaSettings(preferences);
     assert.equal(storage.has("myskodabb.chargers.v1"), false);
+    assert.deepEqual(deletedDatabases, ["myskodabb-chargers"]);
     assert.deepEqual(Array.from(context.loadSkodaSettings().chargerTypes), ["CCS Type 2", "Type 2"]);
     assert.deepEqual(Array.from(context.loadSkodaSettings().chargerCounties), ["Budapest", "Pest"]);
     storage.set("myskodabb.chargers.v1", "new cache");
     context.saveSkodaSettings(preferences);
     assert.equal(storage.get("myskodabb.chargers.v1"), "new cache");
+    assert.equal(deletedDatabases.length, 1);
+    context.saveSkodaSettings({ ...preferences, currency: "EUR" }, { preserveChargerCache: true });
+    assert.equal(deletedDatabases.length, 1);
+    context.saveSkodaSettings(preferences);
     context.saveSkodaSettings({ ...preferences, currency: "EUR" });
     assert.equal(storage.has("myskodabb.chargers.v1"), false);
+    assert.equal(deletedDatabases.length, 3);
+    context.clearSkodaSettings();
+    assert.equal(deletedDatabases.length, 4);
 });

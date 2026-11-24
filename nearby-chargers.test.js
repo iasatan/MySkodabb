@@ -47,13 +47,13 @@ test("page stores and displays only selected chargers after download", async () 
         station(1, 19.05, { county: "Pest", connectors: [{ type: "CHAdeMO" }, { type: "Type 2" }] }),
         station(2, 19.06, { county: "Zala", connectors: [{ type: "Type 2" }] })
     ]), version: "v1" };
-    const { context, storage } = downloadPage(async url => ({ ok: true, json: async () => url.endsWith("/delta")
+    const { context, database } = downloadPage(async url => ({ ok: true, json: async () => url.endsWith("/delta")
         ? { full: true, staticVersion: "v1", changes: [{ id: 1, connectors: [
             { pricePerKwh: 100, priceCurrency: "HUF" }, { pricePerKwh: 200, priceCurrency: "HUF" }
         ] }] } : source }));
     context.loadSkodaSettings = () => ({ currency: "HUF", chargerTypes: ["Type 2"], chargerCounties: ["Pest"] });
     await context.loadChargerCatalog();
-    const saved = JSON.parse(storage.get(chargers.CACHE_KEY)).catalog;
+    const saved = JSON.parse(database.get(chargers.CACHE_KEY).serialized).catalog;
     assert.equal(saved.chargers.length, 1);
     assert.equal(saved.chargers[0].connectors[0].pricePerKwh, 200);
     assert.equal(vm.runInContext("chargerCatalog.chargers.length", context), 1);
@@ -63,18 +63,58 @@ test("page stores and displays only selected chargers after download", async () 
 
 function downloadPage(fetch) {
     const storage = new Map();
+    const database = new Map();
+    const indexedDB = {
+        failWrites: false,
+        open() {
+            const request = {};
+            setImmediate(() => {
+                request.result = {
+                    close() {},
+                    createObjectStore() {},
+                    transaction() {
+                        const transaction = {
+                            objectStore: () => ({
+                                get(key) {
+                                    const result = { result: database.get(key) };
+                                    setImmediate(() => transaction.oncomplete());
+                                    return result;
+                                },
+                                put(value, key) {
+                                    const result = { result: key };
+                                    setImmediate(() => {
+                                        if (indexedDB.failWrites) {
+                                            transaction.error = new Error("quota");
+                                            transaction.onabort();
+                                        } else {
+                                            database.set(key, value);
+                                            transaction.oncomplete();
+                                        }
+                                    });
+                                    return result;
+                                }
+                            })
+                        };
+                        return transaction;
+                    }
+                };
+                request.onsuccess();
+            });
+            return request;
+        }
+    };
     const context = vm.createContext({
         document: {
             getElementById: () => ({ value: "", classList: { toggle() {} }, addEventListener() {}, replaceChildren() {}, add() {} }),
             addEventListener() {}
         },
-        localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
-        NearbyChargers: chargers, fetch, AbortSignal, Intl, URL,
+        localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
+        indexedDB, NearbyChargers: chargers, fetch, AbortSignal, Intl, URL,
         SKODA_WORKER_BASE_URL: "https://proxy.test", getLocale: () => "en", t: key => key, Option: class {},
         loadSkodaSettings: () => ({ currency: "HUF", chargerTypes: [], chargerCounties: [] })
     });
     vm.runInContext(fs.readFileSync(require.resolve("./nearby-chargers.js"), "utf8"), context);
-    return { context, storage };
+    return { context, storage, database, indexedDB };
 }
 
 test("charger cards offer Google Maps and Apple Maps driving directions from the car", () => {
@@ -337,10 +377,10 @@ test("the map displays the car and current chargers, reframes results and clears
     assert.equal(container.hidden, true);
 });
 
-test("the page downloads catalogue and prices through the worker and stores the fresh response in localStorage", async () => {
+test("the page downloads catalogue and prices through the worker and stores the fresh response in IndexedDB", async () => {
     const requests = [];
     const source = { ...catalog([station(1)]), version: "live-catalog" };
-    const { context, storage } = downloadPage(async (url, options) => {
+    const { context, storage, database } = downloadPage(async (url, options) => {
         requests.push({ url, options });
         return { ok: true, json: async () => url.endsWith("/delta")
             ? { full: true, staticVersion: source.version, changes: [] } : source };
@@ -351,7 +391,8 @@ test("the page downloads catalogue and prices through the worker and stores the 
     ]);
     assert.equal(requests[0].options.method, "GET");
     assert.equal(requests[0].options.credentials, "omit");
-    assert.equal(JSON.parse(storage.get(chargers.CACHE_KEY)).catalog.version, "live-catalog");
+    assert.equal(JSON.parse(database.get(chargers.CACHE_KEY).serialized).catalog.version, "live-catalog");
+    assert.equal(storage.has(chargers.CACHE_KEY), false);
     assert.ok(requests.every(request => !request.url.endsWith(".har")));
 });
 
@@ -514,7 +555,7 @@ test("refresh applies selections only after the new filtered cache is saved", as
         station(1, 19.05, { county: "Pest", connectors: [{ type: "Type 2" }] }),
         station(2, 19.06, { county: "Zala", connectors: [{ type: "CHAdeMO" }] })
     ]), version: "v1" };
-    const { context, storage } = downloadPage(async url => ({ ok: true, json: async () => url.endsWith("/delta")
+    const { context, database } = downloadPage(async url => ({ ok: true, json: async () => url.endsWith("/delta")
         ? { full: true, staticVersion: "v1", changes: [] } : source }));
     let settings = { currency: "HUF", chargerTypes: [], chargerCounties: [] };
     context.loadSkodaSettings = () => settings;
@@ -525,23 +566,37 @@ test("refresh applies selections only after the new filtered cache is saved", as
     const preferences = { chargerTypes: ["Type 2"], chargerCounties: ["Pest"] };
     await context.loadChargerCatalog(true, preferences);
     assert.deepEqual(settings.chargerTypes, ["Type 2"]);
-    assert.equal(JSON.parse(storage.get(chargers.CACHE_KEY)).catalog.chargers.length, 1);
-    const saved = storage.get(chargers.CACHE_KEY);
+    assert.equal(JSON.parse(database.get(chargers.CACHE_KEY).serialized).catalog.chargers.length, 1);
+    const saved = database.get(chargers.CACHE_KEY);
     context.fetch = async () => { throw new Error("offline"); };
     await context.loadChargerCatalog(true, { chargerTypes: ["CHAdeMO"], chargerCounties: ["Zala"] });
-    assert.equal(storage.get(chargers.CACHE_KEY), saved);
+    assert.equal(database.get(chargers.CACHE_KEY), saved);
     assert.deepEqual(settings.chargerTypes, ["Type 2"]);
 });
 
 test("a failed cache write does not replace saved refresh preferences", async () => {
     const source = { ...catalog([station(1, 19.05, { county: "Pest", connectors: [{ type: "Type 2" }] })]), version: "v1" };
-    const { context, storage } = downloadPage(async url => ({ ok: true, json: async () => url.endsWith("/delta")
+    const { context, database, indexedDB } = downloadPage(async url => ({ ok: true, json: async () => url.endsWith("/delta")
         ? { full: true, staticVersion: "v1", changes: [] } : source }));
-    storage.set(chargers.CACHE_KEY, "previous cache");
-    context.localStorage.setItem = () => { throw new Error("quota"); };
+    database.set(chargers.CACHE_KEY, "previous cache");
+    indexedDB.failWrites = true;
     let savedSettings = false;
     context.saveSkodaSettings = () => { savedSettings = true; };
     await context.loadChargerCatalog(true, { chargerTypes: ["Type 2"], chargerCounties: ["Pest"] });
-    assert.equal(storage.get(chargers.CACHE_KEY), "previous cache");
+    assert.equal(database.get(chargers.CACHE_KEY), "previous cache");
     assert.equal(savedSettings, false);
+});
+
+test("legacy cache migrates only after a successful IndexedDB transaction", async () => {
+    const { context, storage, database, indexedDB } = downloadPage();
+    chargers.saveCache(context.localStorage, catalog([station(1)]), 123, context.loadSkodaSettings());
+    indexedDB.failWrites = true;
+    assert.equal((await context.readChargerCache()).fetchedAt, 123);
+    assert.equal(storage.has(chargers.CACHE_KEY), true);
+    indexedDB.failWrites = false;
+    assert.equal((await context.readChargerCache()).fetchedAt, 123);
+    assert.equal(storage.has(chargers.CACHE_KEY), false);
+    assert.ok(database.has(chargers.CACHE_KEY));
+    context.loadSkodaSettings = () => ({ currency: "EUR", chargerTypes: [], chargerCounties: [] });
+    assert.equal(await context.readChargerCache(), null);
 });
