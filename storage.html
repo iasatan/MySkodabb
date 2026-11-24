@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>LocalStorage | Škoda Utility</title>
 <link rel="stylesheet" href="styles.css" />
+<style>
+.storage-item{border:1px solid #3a3f44;border-radius:8px;padding:.75rem;margin-bottom:.75rem}
+.storage-item summary{cursor:pointer;display:flex;gap:.75rem;align-items:center;flex-wrap:wrap}
+.storage-item .k{font-weight:600;word-break:break-all}
+.storage-item .meta{opacity:.7;font-size:.85rem}
+.storage-item textarea{width:100%;min-height:14rem;height:60vh;box-sizing:border-box;font:13px/1.4 monospace;white-space:pre;overflow:auto;resize:vertical;margin:.5rem 0}
+</style>
 </head>
 <body>
 <header class="topbar">
@@ -27,10 +34,7 @@
     <p class="lead" data-i18n="storage_lead">A böngészőben tárolt adatok megtekintése, szerkesztése és törlése.</p>
     <p id="storage-status" class="note" aria-live="polite"></p>
     <section class="panel">
-        <table id="storage-table" style="width:100%">
-            <thead><tr><th data-i18n="storage_key">Kulcs</th><th data-i18n="storage_value">Érték</th><th></th></tr></thead>
-            <tbody></tbody>
-        </table>
+        <div id="storage-list"></div>
         <h2 data-i18n="storage_add">Új elem</h2>
         <form id="storage-add" class="field">
             <input type="text" id="new-key" data-i18n-placeholder="storage_key" placeholder="Kulcs" />
