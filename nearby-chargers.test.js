@@ -13,6 +13,67 @@ function catalog(items) {
     return { currency: "HUF", chargers: items };
 }
 
+test("catalogue comparison reports additions, removals and changed tariffs without connector order noise", () => {
+    const previous = { ...catalog([
+        station(1, 19.05, { connectors: [{ type: "CCS", powerKw: 50, pricePerKwh: 100 }, { type: "Type 2", powerKw: 22, pricePerKwh: 50 }] }),
+        station(2)
+    ]), pricingAt: 1 };
+    const current = { ...catalog([
+        station(1, 19.05, { connectors: [{ type: "Type 2", powerKw: 22, pricePerKwh: 50 }, { type: "CCS", powerKw: 50, pricePerKwh: 120 }] }),
+        station(3)
+    ]), pricingAt: 2 };
+    const changes = chargers.compareCatalogs(previous, current);
+    assert.deepEqual(changes.added.map(charger => charger.id), [3]);
+    assert.deepEqual(changes.removed.map(charger => charger.id), [2]);
+    assert.deepEqual(changes.prices.map(({ type, before, after }) => ({ type, before, after })),
+        [{ type: "CCS", before: [100], after: [120] }]);
+    assert.deepEqual(chargers.compareCatalogs(previous, { ...current, pricingAt: null }).prices, []);
+    assert.deepEqual(chargers.compareCatalogs(previous, { ...current, currency: "EUR" }).prices, []);
+    current.chargers[0].status = "broken";
+    assert.deepEqual(chargers.compareCatalogs(previous, current).unavailable.map(charger => charger.id), [1]);
+    assert.deepEqual(chargers.compareCatalogs(previous, { ...current, pricingAt: null }).unavailable, []);
+});
+
+test("refresh renders actual changes and explains when snapshots cannot be compared", async () => {
+    const first = { ...catalog([station(1, 19.05, { connectors: [{ type: "CCS", powerKw: 50 }] }), station(2)]), version: "v1" };
+    const second = { ...catalog([station(1, 19.05, { connectors: [{ type: "CCS", powerKw: 50 }] }), station(3)]), version: "v1" };
+    let source = first;
+    let amount = 100;
+    let failPricing = false;
+    const { context } = downloadPage(async url => {
+        if (url.endsWith("/delta")) {
+            if (failPricing) throw new Error("offline");
+            return { ok: true, json: async () => ({ full: true, staticVersion: "v1", changes: [
+                { id: 1, status: source === second ? "broken" : "operational", connectors: [{ pricePerKwh: amount, priceCurrency: "HUF" }] }
+            ] }) };
+        }
+        return { ok: true, json: async () => source };
+    });
+    const element = () => ({ children: [], append(...children) { this.children.push(...children); },
+        replaceChildren(...children) { this.children = children; } });
+    context.document.createElement = element;
+    context.changesElement = element();
+    vm.runInContext('chargerElements["charger-changes"] = changesElement', context);
+    context.t = (key, vars = {}) => `${key}${vars.count === undefined ? "" : ` ${vars.count}`}`;
+    await context.loadChargerCatalog(true);
+    assert.equal(context.changesElement.children[1].textContent, "chargers_changes_first");
+    source = second;
+    amount = 150;
+    await context.loadChargerCatalog(true);
+    const sections = context.changesElement.children;
+    assert.equal(sections[1].children[0].textContent, "chargers_changes_added 1");
+    assert.equal(sections[2].children[0].textContent, "chargers_changes_removed 1");
+    assert.equal(sections[3].children[0].textContent, "chargers_changes_unavailable 1");
+    assert.equal(sections[4].children[0].textContent, "chargers_changes_prices 1");
+    assert.match(sections[4].children[1].children[0].textContent, /100.*150/);
+    failPricing = true;
+    await context.loadChargerCatalog(true);
+    assert.equal(context.changesElement.children.at(-1).textContent, "chargers_changes_prices_unavailable");
+    context.saveSkodaSettings = () => {};
+    await context.loadChargerCatalog(true, { chargerTypes: ["CCS"], chargerCounties: [] });
+    assert.equal(context.changesElement.children[1].textContent, "chargers_changes_selection");
+});
+
 test("compact cache filters counties and connector types after pricing and keeps only needed data", () => {
     const source = { ...catalog([
         station(1, 19.05, { county: "Pest", timezone: "Europe/Budapest", connectors: [

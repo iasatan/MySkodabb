@@ -116,6 +116,49 @@
         return cached;
     }
 
+    function connectorPriceGroups(charger) {
+        const result = new Map();
+        const connectors = charger.connectors?.length ? charger.connectors : [{ pricePerKwh: charger.pricePerKwh }];
+        for (const connector of connectors) {
+            const key = JSON.stringify([connector.type ?? null, connector.powerKw ?? null]);
+            if (!result.has(key)) result.set(key, []);
+            result.get(key).push(nonnegative(connector.pricePerKwh));
+        }
+        for (const values of result.values()) values.sort((first, second) => (first ?? Infinity) - (second ?? Infinity));
+        return result;
+    }
+
+    function compareConnectorPrices(oldChargers, current) {
+        const prices = [];
+        for (const charger of current.chargers) {
+            const old = oldChargers.get(String(charger.id));
+            if (!old) continue;
+            const before = connectorPriceGroups(old);
+            for (const [key, after] of connectorPriceGroups(charger)) {
+                const prior = before.get(key);
+                if (!prior || prior.length !== after.length || prior.every((price, index) => price === after[index])) continue;
+                const [type, powerKw] = JSON.parse(key);
+                prices.push({ charger, type, powerKw, before: prior, after });
+            }
+        }
+        return prices;
+    }
+
+    function compareCatalogs(previous, current) {
+        const oldChargers = new Map(previous.chargers.map(charger => [String(charger.id), charger]));
+        const newChargers = new Map(current.chargers.map(charger => [String(charger.id), charger]));
+        const added = current.chargers.filter(charger => !oldChargers.has(String(charger.id)));
+        const removed = previous.chargers.filter(charger => !newChargers.has(String(charger.id)));
+        const unavailable = previous.pricingAt && current.pricingAt ? current.chargers.filter(charger => {
+            const old = oldChargers.get(String(charger.id));
+            return old && old.status !== "broken" && old.openNow !== false &&
+                (charger.status === "broken" || charger.openNow === false);
+        }) : [];
+        const prices = previous.pricingAt && current.pricingAt && previous.currency === current.currency
+            ? compareConnectorPrices(oldChargers, current) : [];
+        return { added, removed, unavailable, prices };
+    }
+
     function candidates(catalog, car, home, rangeKm, radiusKm, reservePercent = 10, connectorType = "") {
         if (!validPosition(car) || !validNumber(rangeKm) || rangeKm < 0 ||
             !validNumber(radiusKm) || radiusKm <= 0 || !validNumber(reservePercent) ||
@@ -170,7 +213,7 @@
             (first.startFee ?? Infinity) - (second.startFee ?? Infinity) || first.drivingKm - second.drivingKm);
     }
 
-    const api = { CACHE_KEY, CATALOG_URL, validPosition, distanceKm, normalizeCatalog, mergePricing, compactCatalog, readCache, saveCache,
+    const api = { CACHE_KEY, CATALOG_URL, validPosition, distanceKm, normalizeCatalog, mergePricing, compactCatalog, readCache, saveCache, compareCatalogs,
         candidates, shortlist, rankReachable, hybridPriceLimit, hybridCostPerKm };
     if (typeof module !== "undefined" && module.exports) module.exports = api;
     else root.NearbyChargers = api;

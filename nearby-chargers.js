@@ -2,9 +2,10 @@ const chargerElements = Object.fromEntries([
     "refresh-car", "refresh-catalog", "charger-vehicle-status", "charger-catalog-status", "charger-warning",
     "charger-filters", "charger-address", "charger-radius", "charger-reserve", "charger-connector", "charger-card-only", "charger-hybrid-only", "find-chargers",
     "charger-map", "charger-search-status", "charger-list", "charger-results-heading", "charger-method", "charger-hybrid-label",
-    "charger-refresh-dialog", "charger-refresh-form", "charger-refresh-cancel", "charger-types", "charger-counties"
+    "charger-refresh-dialog", "charger-refresh-form", "charger-refresh-cancel", "charger-types", "charger-counties", "charger-changes"
 ].map(id => [id, document.getElementById(id)]));
 let chargerCatalog = null;
+let chargerCatalogPreferences = null;
 let chargerVehicle = null;
 let chargerVehicleMeta = null;
 let chargerHome = null;
@@ -114,6 +115,7 @@ async function readChargerCache() {
 async function setChargerCatalog(catalog, fetchedAt, source, persist = true, settings = loadSkodaSettings()) {
     catalog = NearbyChargers.compactCatalog(catalog, settings);
     chargerCatalog = catalog;
+    chargerCatalogPreferences = chargerCachePreferences(settings);
     let saved = !persist;
     if (persist) {
         try { await writeChargerCache(catalog, fetchedAt, settings); saved = true; }
@@ -133,6 +135,51 @@ async function setChargerCatalog(catalog, fetchedAt, source, persist = true, set
     return saved;
 }
 
+function renderChargerChanges(previous, current, comparable) {
+    const container = chargerElements["charger-changes"];
+    container.replaceChildren();
+    container.hidden = false;
+    const heading = document.createElement("h2");
+    heading.textContent = t("chargers_changes_title");
+    container.append(heading);
+    const message = key => {
+        const paragraph = document.createElement("p");
+        paragraph.textContent = t(key);
+        container.append(paragraph);
+    };
+    if (!previous) { message("chargers_changes_first"); return; }
+    if (!comparable) { message("chargers_changes_selection"); return; }
+    const changes = NearbyChargers.compareCatalogs(previous, current);
+    const name = charger => `${charger.name}${charger.county ? " (" + charger.county + ")" : ""} [${charger.id}]`;
+    const currency = new Intl.NumberFormat(getLocale(), { style: "currency", currency: current.currency, maximumFractionDigits: 2 });
+    const formatPrices = prices => prices.map(price => price === null ? t("chargers_price_unknown") : `${currency.format(price)}/kWh`).join(", ");
+    const section = (key, items, describe) => {
+        const details = document.createElement("details");
+        const summary = document.createElement("summary");
+        summary.textContent = t(key, { count: items.length });
+        details.append(summary);
+        if (items.length) {
+            const list = document.createElement("ul");
+            for (const item of items) {
+                const entry = document.createElement("li");
+                entry.textContent = describe(item);
+                list.append(entry);
+            }
+            details.append(list);
+        }
+        container.append(details);
+    };
+    section("chargers_changes_added", changes.added, name);
+    section("chargers_changes_removed", changes.removed, name);
+    if (previous.pricingAt && current.pricingAt) {
+        section("chargers_changes_unavailable", changes.unavailable, name);
+        if (previous.currency === current.currency) {
+            section("chargers_changes_prices", changes.prices, change =>
+                `${name(change.charger)} - ${[change.type, change.powerKw == null ? null : change.powerKw + " kW"].filter(Boolean).join(" ") || t("chargers_energy_price")}: ${formatPrices(change.before)} -> ${formatPrices(change.after)}`);
+        } else message("chargers_changes_prices_unavailable");
+    } else message("chargers_changes_prices_unavailable");
+}
+
 async function loadChargerCatalog(forceRefresh = false, preferences = null) {
     if (!forceRefresh) {
         const cached = await readChargerCache();
@@ -140,6 +187,12 @@ async function loadChargerCatalog(forceRefresh = false, preferences = null) {
             await setChargerCatalog(cached.catalog, cached.fetchedAt, "source_cache", !cached.catalog.compact);
             return;
         }
+    }
+    const previous = chargerCatalog;
+    const previousPreferences = chargerCatalogPreferences;
+    if (forceRefresh) {
+        chargerElements["charger-changes"].hidden = true;
+        chargerElements["charger-changes"].replaceChildren();
     }
     chargerMessage("charger-catalog-status", t("loading"));
     try {
@@ -150,6 +203,7 @@ async function loadChargerCatalog(forceRefresh = false, preferences = null) {
         const settings = { ...loadSkodaSettings(), ...preferences };
         const saved = await setChargerCatalog(catalog, Date.now(), "source_fresh", true, settings);
         if (preferences && saved) saveSkodaSettings(settings, { preserveChargerCache: true });
+        if (forceRefresh) renderChargerChanges(previous, chargerCatalog, previousPreferences === chargerCachePreferences(settings));
     } catch {
         if (chargerCatalog) {
             chargerMessage("charger-catalog-status", t("chargers_refresh_failed"), true);
