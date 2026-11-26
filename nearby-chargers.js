@@ -150,34 +150,43 @@ function renderChargerChanges(previous, current, comparable) {
     if (!previous) { message("chargers_changes_first"); return; }
     if (!comparable) { message("chargers_changes_selection"); return; }
     const changes = NearbyChargers.compareCatalogs(previous, current);
-    const name = charger => `${charger.name}${charger.county ? " (" + charger.county + ")" : ""} [${charger.id}]`;
+    const name = charger => `${charger.name} [${charger.id}]`;
     const currency = new Intl.NumberFormat(getLocale(), { style: "currency", currency: current.currency, maximumFractionDigits: 2 });
     const formatPrices = prices => prices.map(price => price === null ? t("chargers_price_unknown") : `${currency.format(price)}/kWh`).join(", ");
-    const section = (key, items, describe) => {
-        const details = document.createElement("details");
-        const summary = document.createElement("summary");
-        summary.textContent = t(key, { count: items.length });
-        details.append(summary);
-        if (items.length) {
+    const pricesComparable = previous.pricingAt && current.pricingAt;
+    const pricesDescribe = change =>
+        `${name(change.charger)} - ${[change.type, change.powerKw == null ? null : change.powerKw + " kW"].filter(Boolean).join(" ") || t("chargers_energy_price")}: ${formatPrices(change.before)} -> ${formatPrices(change.after)}`;
+    const countyOf = item => (item.charger ?? item).county || "";
+    const types = [["chargers_changes_added", changes.added, name], ["chargers_changes_removed", changes.removed, name]];
+    if (pricesComparable) {
+        types.push(["chargers_changes_unavailable", changes.unavailable, name]);
+        if (previous.currency === current.currency) types.push(["chargers_changes_prices", changes.prices, pricesDescribe]);
+    }
+    const counties = [...new Set(types.flatMap(([, items]) => items.map(countyOf)))]
+        .sort((first, second) => (first === "") - (second === "") || first.localeCompare(second, getLocale()));
+    for (const county of counties) {
+        const group = document.createElement("section");
+        const countyHeading = document.createElement("h3");
+        countyHeading.textContent = county || t("chargers_county_unknown");
+        group.append(countyHeading);
+        for (const [key, allItems, describe] of types) {
+            const items = allItems.filter(item => countyOf(item) === county);
+            if (!items.length) continue;
+            const details = document.createElement("details");
+            const summary = document.createElement("summary");
+            summary.textContent = t(key, { count: items.length });
             const list = document.createElement("ul");
             for (const item of items) {
                 const entry = document.createElement("li");
                 entry.textContent = describe(item);
                 list.append(entry);
             }
-            details.append(list);
+            details.append(summary, list);
+            group.append(details);
         }
-        container.append(details);
-    };
-    section("chargers_changes_added", changes.added, name);
-    section("chargers_changes_removed", changes.removed, name);
-    if (previous.pricingAt && current.pricingAt) {
-        section("chargers_changes_unavailable", changes.unavailable, name);
-        if (previous.currency === current.currency) {
-            section("chargers_changes_prices", changes.prices, change =>
-                `${name(change.charger)} - ${[change.type, change.powerKw == null ? null : change.powerKw + " kW"].filter(Boolean).join(" ") || t("chargers_energy_price")}: ${formatPrices(change.before)} -> ${formatPrices(change.after)}`);
-        } else message("chargers_changes_prices_unavailable");
-    } else message("chargers_changes_prices_unavailable");
+        container.append(group);
+    }
+    if (!pricesComparable || previous.currency !== current.currency) message("chargers_changes_prices_unavailable");
 }
 
 async function loadChargerCatalog(forceRefresh = false, preferences = null) {
