@@ -60,12 +60,12 @@ test("refresh renders actual changes and explains when snapshots cannot be compa
     source = second;
     amount = 150;
     await context.loadChargerCatalog(true);
-    const sections = context.changesElement.children;
-    assert.equal(sections[1].children[0].textContent, "chargers_changes_added 1");
-    assert.equal(sections[2].children[0].textContent, "chargers_changes_removed 1");
-    assert.equal(sections[3].children[0].textContent, "chargers_changes_unavailable 1");
-    assert.equal(sections[4].children[0].textContent, "chargers_changes_prices 1");
-    assert.match(sections[4].children[1].children[0].textContent, /100.*150/);
+    assert.equal(context.changesElement.children.length, 2);
+    const [countyHeading, ...sections] = context.changesElement.children[1].children;
+    assert.equal(countyHeading.textContent, "chargers_county_unknown");
+    assert.deepEqual(sections.map(section => section.children[0].textContent),
+        ["chargers_changes_added 1", "chargers_changes_removed 1", "chargers_changes_unavailable 1", "chargers_changes_prices 1"]);
+    assert.match(sections[3].children[1].children[0].textContent, /100.*150/);
     failPricing = true;
     await context.loadChargerCatalog(true);
     assert.equal(context.changesElement.children.at(-1).textContent, "chargers_changes_prices_unavailable");
